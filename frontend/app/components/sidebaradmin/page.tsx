@@ -1,48 +1,60 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 import {
-  LayoutDashboard,
-  FileText,
   ChevronRight,
+  FileText,
+  LayoutDashboard,
 } from "lucide-react";
 
 export default function SidebarAdmin() {
-  const [activeMenu, setActiveMenu] = useState("dashboard");
+  const pathname = usePathname();
 
   return (
     <aside className="w-[280px] min-h-screen bg-white border-r border-gray-200 p-6">
-      
       {/* LOGO */}
       <div className="mb-10">
-        <h1 className="text-3xl font-bold text-[#0B6B2B]">
-          Admin Panel
-        </h1>
+        {/* LOGO IMAGE */}
+        <div className="flex items-center gap-4">
+          <div className="w-14 h-14 rounded-2xl bg-[#0B6B2B] overflow-hidden flex items-center justify-center">
+            <Image
+              src="/image/logo bulet.png"
+              alt="Logo"
+              width={40}
+              height={40}
+              className="object-contain"
+            />
+          </div>
 
-        <p className="text-gray-500 mt-1 text-sm">
-          Kelola laporan lingkungan
-        </p>
+          <div>
+            <h1 className="text-2xl font-bold text-[#0B6B2B]">
+              Admin Panel
+            </h1>
+
+            <p className="text-gray-500 text-sm">
+              Kelola laporan lingkungan
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* MENU */}
       <div className="space-y-4">
-        
         {/* DASHBOARD */}
         <Link href="/admin/dashboard">
           <button
-            onClick={() => setActiveMenu("dashboard")}
             className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-300 group
               
               ${
-                activeMenu === "dashboard"
+                pathname === "/admin/dashboard"
                   ? "bg-[#0B6B2B] text-white shadow-lg"
                   : "bg-[#F5F5F5] text-black hover:bg-green-100"
               }
             `}
           >
-            
             <div className="flex items-center gap-4">
               <LayoutDashboard className="w-6 h-6" />
 
@@ -54,7 +66,7 @@ export default function SidebarAdmin() {
             <ChevronRight
               className={`w-5 h-5 transition-transform duration-300
               ${
-                activeMenu === "dashboard"
+                pathname === "/admin/dashboard"
                   ? "translate-x-1"
                   : "group-hover:translate-x-1"
               }
@@ -66,17 +78,15 @@ export default function SidebarAdmin() {
         {/* LAPORAN */}
         <Link href="/admin/laporan">
           <button
-            onClick={() => setActiveMenu("laporan")}
             className={`w-full flex items-center justify-between px-5 py-4 rounded-2xl transition-all duration-300 group
               
               ${
-                activeMenu === "laporan"
+                pathname === "/admin/laporan"
                   ? "bg-[#0B6B2B] text-white shadow-lg"
                   : "bg-[#F5F5F5] text-black hover:bg-green-100"
               }
             `}
           >
-            
             <div className="flex items-center gap-4">
               <FileText className="w-6 h-6" />
 
@@ -88,7 +98,7 @@ export default function SidebarAdmin() {
             <ChevronRight
               className={`w-5 h-5 transition-transform duration-300
               ${
-                activeMenu === "laporan"
+                pathname === "/admin/laporan"
                   ? "translate-x-1"
                   : "group-hover:translate-x-1"
               }
