@@ -18,10 +18,10 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState("");
 
+  // =========================
   // HANDLE INPUT
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  // =========================
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
     setFormData({
@@ -30,50 +30,58 @@ const LoginPage = () => {
     });
   };
 
-  // HANDLE LOGIN
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
+  // =========================
+  // HANDLE LOGIN (FIXED SAFE ROLE)
+  // =========================
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     setServerError("");
     setLoading(true);
 
     try {
-      const response = await fetch(
-        "http://localhost:5000/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        }
-      );
+      const response = await fetch("http://localhost:5000/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: formData.email,
+          password: formData.password,
+        }),
+      });
 
       const data = await response.json();
 
-      console.log(data);
+      console.log("LOGIN RESPONSE:", data);
 
       if (!response.ok) {
         throw new Error(data.message || "Login gagal");
       }
 
-      // SIMPAN TOKEN
-      localStorage.setItem("token", data.token);
+      // =========================
+      // VALIDASI USER (FIX IMPORTANT)
+      // =========================
+      const user = data?.user;
 
-      // SIMPAN USER
-      localStorage.setItem(
-        "user",
-        JSON.stringify(data.user)
-      );
+      if (!user) {
+        throw new Error("Data user tidak ditemukan dari server");
+      }
 
-      // REDIRECT BERDASARKAN ROLE
-      switch (data.user.role) {
+      if (!user.role) {
+        throw new Error("Role user tidak tersedia");
+      }
 
+      // =========================
+      // SIMPAN TOKEN & USER
+      // =========================
+      localStorage.setItem("token", data.token || "");
+      localStorage.setItem("user", JSON.stringify(user));
+
+      // =========================
+      // REDIRECT BERDASARKAN ROLE (SAFE)
+      // =========================
+      switch (user.role) {
         case "Superadmin":
           router.push("/superadmin");
           break;
@@ -83,13 +91,11 @@ const LoginPage = () => {
           break;
 
         default:
-          router.push("/beranda");
+          router.push("/user/beranda");
+          break;
       }
-
     } catch (error: any) {
-      setServerError(
-        error.message || "Terjadi kesalahan koneksi"
-      );
+      setServerError(error.message || "Terjadi kesalahan koneksi");
     } finally {
       setLoading(false);
     }
@@ -202,10 +208,7 @@ const LoginPage = () => {
               )}
 
               {/* FORM */}
-              <form
-                onSubmit={handleSubmit}
-                className="space-y-5 text-white"
-              >
+              <form onSubmit={handleSubmit} className="space-y-5 text-white">
 
                 {/* EMAIL */}
                 <div className="flex flex-col gap-1.5">
@@ -239,15 +242,6 @@ const LoginPage = () => {
                     className="w-full px-4 py-3.5 rounded-lg bg-[#033a18] bg-opacity-60 border border-[#0a4d24] focus:outline-none focus:ring-1 focus:ring-green-400 placeholder-gray-400 text-sm"
                     required
                   />
-
-                  <div className="text-right">
-                    <a
-                      href="#"
-                      className="text-xs text-gray-200 hover:underline hover:text-white"
-                    >
-                      Lupa Password ?
-                    </a>
-                  </div>
                 </div>
 
                 {/* BUTTON */}
@@ -257,21 +251,15 @@ const LoginPage = () => {
                     disabled={loading}
                     className="w-full py-3.5 bg-white text-[#065F27] font-bold text-lg rounded-lg hover:bg-gray-100 transition active:scale-[0.98] disabled:opacity-70"
                   >
-                    {loading
-                      ? "Memproses..."
-                      : "Masuk"}
+                    {loading ? "Memproses..." : "Masuk"}
                   </button>
                 </div>
               </form>
 
-              {/* Register */}
+              {/* REGISTER */}
               <div className="mt-10 text-center text-white text-sm">
                 Tidak Punya Akun?{" "}
-
-                <Link
-                  href="/daftar"
-                  className="font-bold italic hover:underline ml-1"
-                >
+                <Link href="/daftar" className="font-bold italic hover:underline ml-1">
                   Daftar Disini
                 </Link>
               </div>

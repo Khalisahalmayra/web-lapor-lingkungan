@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import {
   Bell,
@@ -15,25 +15,143 @@ import {
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   const [openProfile, setOpenProfile] = useState(false);
 
-  // simulasi profile image
+  // =========================
+  // DATA USER
+  // =========================
+  const [user, setUser] = useState<any>(null);
+
+  // =========================
+  // FORM
+  // =========================
+  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
+
+  // =========================
+  // PROFILE IMAGE
+  // =========================
   const [profileImage, setProfileImage] = useState("");
+
+  // =========================
+  // GET USER LOCALSTORAGE (SAFE)
+  // =========================
+  useEffect(() => {
+    const userData = localStorage.getItem("user");
+
+    // cegah undefined / null / string rusak
+    if (!userData || userData === "undefined") return;
+
+    try {
+      const parsedUser = JSON.parse(userData);
+
+      if (!parsedUser) return;
+
+      setUser(parsedUser);
+      setUsername(parsedUser.username || "");
+      setEmail(parsedUser.email || "");
+
+      // backend kamu pakai "profile"
+      setProfileImage(parsedUser.profile || parsedUser.foto_profile || "");
+    } catch (error) {
+      console.log("User localStorage error:", error);
+      localStorage.removeItem("user");
+    }
+  }, []);
+
+  // =========================
+  // CLOSE DROPDOWN
+  // =========================
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropdownRef.current &&
+        !dropdownRef.current.contains(event.target as Node)
+      ) {
+        setOpenProfile(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // =========================
+  // UPLOAD FOTO
+  // =========================
+  const handleUploadFoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const imageUrl = URL.createObjectURL(file);
+
+    setProfileImage(imageUrl);
+
+    const updatedUser = {
+      ...user,
+      profile: imageUrl,
+    };
+
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
+  // =========================
+  // DELETE FOTO
+  // =========================
+  const handleDeleteFoto = () => {
+    setProfileImage("");
+
+    const updatedUser = {
+      ...user,
+      profile: "",
+    };
+
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+  };
+
+  // =========================
+  // UPDATE PROFILE
+  // =========================
+  const handleUpdateProfile = () => {
+    const updatedUser = {
+      ...user,
+      username,
+      email,
+    };
+
+    localStorage.setItem("user", JSON.stringify(updatedUser));
+    setUser(updatedUser);
+
+    alert("Profile berhasil diupdate");
+  };
+
+  // =========================
+  // LOGOUT
+  // =========================
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+
+    router.push("/login");
+  };
 
   return (
     <nav className="w-full bg-white border-b border-gray-200 px-8 py-4 grid grid-cols-3 items-center relative z-50">
-      
+
       {/* ================= LOGO ================= */}
       <div className="flex items-center justify-start">
         <Link href="/">
-          <div className="cursor-pointer">
-            <img
-              src="/image/logo panjang.png"
-              alt="Logo"
-              className="w-[250px] object-contain"
-            />
-          </div>
+          <img
+            src="/image/logo panjang.png"
+            alt="Logo"
+            className="w-[250px] object-contain"
+          />
         </Link>
       </div>
 
@@ -41,11 +159,10 @@ export default function Navbar() {
       <div className="flex justify-center">
         <ul className="hidden lg:flex items-center gap-16">
 
-          {/* BERANDA */}
           <li className="relative">
             <Link
               href="/user/beranda"
-              className={`text-[20px] font-bold transition ${
+              className={`text-[20px] font-bold ${
                 pathname === "/user/beranda"
                   ? "text-green-700"
                   : "text-black hover:text-green-700"
@@ -53,17 +170,12 @@ export default function Navbar() {
             >
               Beranda
             </Link>
-
-            {pathname === "/user/beranda" && (
-              <div className="absolute left-0 right-0 -bottom-4 mx-auto w-full h-[5px] bg-green-700 rounded-full"></div>
-            )}
           </li>
 
-          {/* LAPOR */}
           <li className="relative">
             <Link
               href="/user/lapor"
-              className={`text-[20px] font-bold transition ${
+              className={`text-[20px] font-bold ${
                 pathname === "/user/lapor"
                   ? "text-green-700"
                   : "text-black hover:text-green-700"
@@ -71,17 +183,12 @@ export default function Navbar() {
             >
               Lapor
             </Link>
-
-            {pathname === "/user/lapor" && (
-              <div className="absolute left-0 right-0 -bottom-4 mx-auto w-full h-[5px] bg-green-700 rounded-full"></div>
-            )}
           </li>
 
-          {/* RIWAYAT */}
           <li className="relative">
             <Link
               href="/user/riwayat"
-              className={`text-[20px] font-bold transition ${
+              className={`text-[20px] font-bold ${
                 pathname === "/user/riwayat"
                   ? "text-green-700"
                   : "text-black hover:text-green-700"
@@ -89,170 +196,116 @@ export default function Navbar() {
             >
               Riwayat
             </Link>
-
-            {pathname === "/user/riwayat" && (
-              <div className="absolute left-0 right-0 -bottom-4 mx-auto w-full h-[5px] bg-green-700 rounded-full"></div>
-            )}
           </li>
+
         </ul>
       </div>
 
       {/* ================= RIGHT ================= */}
       <div className="flex items-center gap-5 justify-end">
-        
-        {/* NOTIFICATION */}
-        <div className="flex items-center gap-2 cursor-pointer">
-          
-          <div className="w-[58px] h-[58px] rounded-full border-2 border-black bg-white flex items-center justify-center hover:scale-105 transition">
-            <Bell className="w-7 h-7 text-black" />
-          </div>
 
-          <ChevronDown className="text-black w-5 h-5" />
+        {/* NOTIF */}
+        <div className="flex items-center gap-2 cursor-pointer">
+          <div className="w-[58px] h-[58px] rounded-full border-2 border-black flex items-center justify-center">
+            <Bell className="w-7 h-7" />
+          </div>
+          <ChevronDown className="w-5 h-5" />
         </div>
 
         {/* PROFILE */}
-        <div className="relative">
+        <div className="relative" ref={dropdownRef}>
 
-          {/* BUTTON PROFILE */}
           <div
             onClick={() => setOpenProfile(!openProfile)}
             className="flex items-center gap-2 cursor-pointer"
           >
-            
-            <div className="w-[58px] h-[58px] rounded-full border-[2px] border-black bg-white flex items-center justify-center hover:scale-105 transition overflow-hidden">
-              
-              {/* kalau ada foto */}
+            <div className="w-[58px] h-[58px] rounded-full border-2 border-black overflow-hidden flex items-center justify-center">
               {profileImage ? (
                 <img
                   src={profileImage}
-                  alt="Profile"
                   className="w-full h-full object-cover"
                 />
               ) : (
-                <UserCircle2 className="w-9 h-9 text-black" />
+                <UserCircle2 className="w-9 h-9" />
               )}
             </div>
 
-            <ChevronDown className="text-black w-5 h-5" />
+            <ChevronDown className="w-5 h-5" />
           </div>
 
-          {/* ================= DROPDOWN PROFILE ================= */}
+          {/* DROPDOWN */}
           {openProfile && (
-            <div className="absolute right-0 top-20 w-[320px] bg-white rounded-3xl shadow-2xl border border-gray-200 p-5">
+            <div className="absolute right-0 top-20 w-[320px] bg-white rounded-3xl shadow-2xl border p-5">
 
-              {/* HEADER */}
+              {/* PROFILE */}
               <div className="flex flex-col items-center border-b pb-5">
 
-                <div className="relative">
+                {profileImage ? (
+                  <img
+                    src={profileImage}
+                    className="w-24 h-24 rounded-full object-cover border-4 border-green-700"
+                  />
+                ) : (
+                  <div className="w-24 h-24 rounded-full border-4 border-green-700 flex items-center justify-center">
+                    <UserCircle2 className="w-14 h-14" />
+                  </div>
+                )}
 
-                  {/* FOTO PROFILE */}
-                  {profileImage ? (
-                    <img
-                      src={profileImage}
-                      alt="Profile"
-                      className="w-24 h-24 rounded-full object-cover border-4 border-green-700"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-full border-4 border-green-700 bg-gray-100 flex items-center justify-center">
-                      <UserCircle2 className="w-14 h-14 text-gray-500" />
-                    </div>
-                  )}
-
-                  {/* EDIT PHOTO */}
-                  <button className="absolute bottom-1 right-1 w-8 h-8 rounded-full bg-green-700 flex items-center justify-center text-white hover:scale-105 transition">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* BUTTONS */}
                 <div className="flex gap-3 mt-4">
 
-                  <button className="px-4 py-2 bg-green-700 text-white rounded-xl text-sm font-semibold hover:bg-green-800 transition">
-                    Upload Foto
+                  <label className="px-4 py-2 bg-green-700 text-white rounded-xl cursor-pointer">
+                    Upload
+                    <input type="file" hidden onChange={handleUploadFoto} />
+                  </label>
+
+                  <button
+                    onClick={handleDeleteFoto}
+                    className="px-4 py-2 border border-red-500 text-red-500 rounded-xl"
+                  >
+                    <Trash2 className="w-4 h-4 inline" /> Hapus
                   </button>
 
-                  <button className="px-4 py-2 border border-red-500 text-red-500 rounded-xl text-sm font-semibold hover:bg-red-50 transition flex items-center gap-2">
-                    <Trash2 className="w-4 h-4" />
-                    Hapus
-                  </button>
                 </div>
               </div>
 
-              {/* ================= FORM PROFILE ================= */}
+              {/* FORM */}
               <div className="mt-6 space-y-5">
 
-                {/* NAMA */}
-                <div>
-                  <label className="text-sm font-bold text-gray-700">
-                    Nama Pengguna
-                  </label>
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="w-full px-4 py-3 border rounded-xl"
+                  placeholder="Username"
+                />
 
-                  <div className="mt-2 flex items-center gap-2">
-                    
-                    <input
-                      type="text"
-                      defaultValue="Ayra Studiess"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-700 text-sm"
-                    />
+                <input
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 border rounded-xl"
+                  placeholder="Email"
+                />
 
-                    <button className="p-3 rounded-xl bg-green-700 text-white hover:bg-green-800 transition">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+                <button
+                  onClick={handleUpdateProfile}
+                  className="w-full bg-green-700 text-white py-3 rounded-xl"
+                >
+                  Update Profile
+                </button>
 
-                {/* EMAIL */}
-                <div>
-                  <label className="text-sm font-bold text-gray-700">
-                    Email
-                  </label>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    
-                    <input
-                      type="email"
-                      defaultValue="ayra@gmail.com"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-700 text-sm"
-                    />
-
-                    <button className="p-3 rounded-xl bg-green-700 text-white hover:bg-green-800 transition">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* PASSWORD */}
-                <div>
-                  <label className="text-sm font-bold text-gray-700">
-                    Password
-                  </label>
-
-                  <div className="mt-2 flex items-center gap-2">
-                    
-                    <input
-                      type="password"
-                      defaultValue="12345678"
-                      className="w-full px-4 py-3 rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-green-700 text-sm"
-                    />
-
-                    <button className="p-3 rounded-xl bg-green-700 text-white hover:bg-green-800 transition">
-                      <Pencil className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                {/* LOGOUT */}
-                <button className="w-full mt-3 py-3 rounded-2xl bg-red-500 text-white font-bold flex items-center justify-center gap-3 hover:bg-red-600 transition">
-                  
+                <button
+                  onClick={handleLogout}
+                  className="w-full bg-red-500 text-white py-3 rounded-xl flex items-center justify-center gap-2"
+                >
                   <LogOut className="w-5 h-5" />
-
                   Logout
                 </button>
+
               </div>
             </div>
           )}
         </div>
       </div>
+
     </nav>
   );
 }

@@ -2,7 +2,9 @@ const pool = require("../config/db");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+// =========================
 // REGISTER
+// =========================
 const register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
@@ -22,48 +24,49 @@ const register = async (req, res) => {
     // hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // insert user
+    // insert user (default role = user)
     await pool.query(
       `
       INSERT INTO users(username, email, password, role)
-      VALUES($1,$2,$3,$4)
+      VALUES($1, $2, $3, $4)
       `,
       [username, email, hashedPassword, "user"]
     );
 
-    res.status(201).json({
+    return res.status(201).json({
       message: "Register berhasil",
     });
 
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message,
     });
   }
 };
 
-// LOGIN
+// =========================
+// LOGIN (FIXED FULL RESPONSE)
+// =========================
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // cek user
-    const user = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
+    // ambil user + role
+    const result = await pool.query(
+      "SELECT id, username, email, password, role FROM users WHERE email = $1",
       [email]
     );
 
-    if (user.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message: "User tidak ditemukan",
       });
     }
 
+    const user = result.rows[0];
+
     // cek password
-    const validPassword = await bcrypt.compare(
-      password,
-      user.rows[0].password
-    );
+    const validPassword = await bcrypt.compare(password, user.password);
 
     if (!validPassword) {
       return res.status(400).json({
@@ -74,7 +77,8 @@ const login = async (req, res) => {
     // generate token
     const token = jwt.sign(
       {
-        id: user.rows[0].id,
+        id: user.id,
+        role: user.role,
       },
       process.env.JWT_SECRET,
       {
@@ -82,24 +86,31 @@ const login = async (req, res) => {
       }
     );
 
-    // response token only
-    res.json({
+    // 🔥 FIX PENTING: kirim user ke frontend
+    return res.json({
       message: "Login berhasil",
       token,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+      },
     });
 
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message,
     });
   }
 };
 
-// PROFILE
+// =========================
+// PROFILE (OPTIONAL AMAN)
+// =========================
 const profile = async (req, res) => {
   try {
-
-    const user = await pool.query(
+    const result = await pool.query(
       `
       SELECT id, username, email, role
       FROM users
@@ -108,18 +119,18 @@ const profile = async (req, res) => {
       [req.user.id]
     );
 
-    if (user.rows.length === 0) {
+    if (result.rows.length === 0) {
       return res.status(404).json({
         message: "User tidak ditemukan",
       });
     }
 
-    res.json({
-      user: user.rows[0],
+    return res.json({
+      user: result.rows[0],
     });
 
   } catch (error) {
-    res.status(500).json({
+    return res.status(500).json({
       message: error.message,
     });
   }

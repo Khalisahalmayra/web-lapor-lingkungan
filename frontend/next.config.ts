@@ -1,7 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  images: {
+    domains: [
+      "awsimages.detik.net.id",
+      "asset.kompas.com",
+    ],
+  },
 };
 
 export default nextConfig;
