@@ -55,18 +55,38 @@ const getDetailLaporan = async (req, res) => {
     const { id } = req.params;
 
     const result = await pool.query(
-      `
-      SELECT
-        laporan_masyarakat.*,
-        kategori.category_name,
-        users.username
-      FROM laporan_masyarakat
-      JOIN kategori ON laporan_masyarakat.kategori_id = kategori.id
-      JOIN users ON laporan_masyarakat.user_id = users.id
-      WHERE laporan_masyarakat.id = $1
-      `,
-      [Number(id)]
-    );
+  `
+  SELECT
+    laporan_masyarakat.*,
+    kategori.category_name,
+    users.username,
+
+    COUNT(DISTINCT komentar.id)::INT AS total_komen,
+    COUNT(DISTINCT suka.id)::INT AS total_like
+
+  FROM laporan_masyarakat
+
+  JOIN kategori
+  ON laporan_masyarakat.kategori_id = kategori.id
+
+  JOIN users
+  ON laporan_masyarakat.user_id = users.id
+
+  LEFT JOIN komentar
+  ON laporan_masyarakat.id = komentar.laporan_id
+
+  LEFT JOIN suka
+  ON laporan_masyarakat.id = suka.laporan_id
+
+  WHERE laporan_masyarakat.id = $1
+
+  GROUP BY
+    laporan_masyarakat.id,
+    kategori.category_name,
+    users.username
+  `,
+  [Number(id)]
+);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ message: "Data tidak ditemukan" });
@@ -380,6 +400,66 @@ const updateStatusLaporan = async (req, res) => {
   }
 };
 
+// ==========================
+// DELETE LAPORAN
+// ==========================
+const deleteLaporan = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // ==========================
+    // HAPUS LIKE
+    // ==========================
+    await pool.query(
+      `
+      DELETE FROM suka
+      WHERE laporan_id = $1
+      `,
+      [id]
+    );
+
+    // ==========================
+    // HAPUS KOMENTAR
+    // ==========================
+    await pool.query(
+      `
+      DELETE FROM komentar
+      WHERE laporan_id = $1
+      `,
+      [id]
+    );
+
+    // ==========================
+    // HAPUS LAPORAN
+    // ==========================
+    const result = await pool.query(
+      `
+      DELETE FROM laporan_masyarakat
+      WHERE id = $1
+      RETURNING *
+      `,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Laporan tidak ditemukan",
+      });
+    }
+
+    res.json({
+      message: "Laporan berhasil dihapus",
+    });
+
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
 module.exports = {
   getLaporan,
   getDetailLaporan,
@@ -388,4 +468,5 @@ module.exports = {
   getRiwayatUser,
   likeLaporan,
   updateStatusLaporan,
+  deleteLaporan,
 };

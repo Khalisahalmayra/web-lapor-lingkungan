@@ -13,6 +13,7 @@ import {
   User,
   XCircle,
   MessageSquareText,
+  Trash2,
 } from "lucide-react";
 
 interface Laporan {
@@ -33,7 +34,6 @@ interface Laporan {
 export default function DetailLaporanPage() {
   const params = useParams();
 
-  // FIX ID
   const id = Array.isArray(params.id)
     ? params.id[0]
     : params.id;
@@ -49,6 +49,9 @@ export default function DetailLaporanPage() {
 
   const [showFinishInput, setShowFinishInput] =
     useState(false);
+
+  const [showDeleteModal, setShowDeleteModal] =
+  useState(false);
 
   const [laporan, setLaporan] =
     useState<Laporan | null>(null);
@@ -72,11 +75,6 @@ export default function DetailLaporanPage() {
 
         const data = await response.json();
 
-        console.log("DATA :", data);
-
-        // ==========================
-        // FIX DATA ARRAY / OBJECT
-        // ==========================
         const laporanData = Array.isArray(data)
           ? data[0]
           : data.data
@@ -90,9 +88,6 @@ export default function DetailLaporanPage() {
 
         setLaporan(laporanData);
 
-        // ==========================
-        // STATUS FORMAT
-        // ==========================
         if (
           laporanData.status === "pending"
         ) {
@@ -117,9 +112,6 @@ export default function DetailLaporanPage() {
           setStatus("Ditolak");
         }
 
-        // ==========================
-        // PESAN ADMIN
-        // ==========================
         if (laporanData.pesan_admin) {
           setAdminMessage(
             laporanData.pesan_admin
@@ -203,6 +195,40 @@ export default function DetailLaporanPage() {
     }
   };
 
+  // ==========================
+  // DELETE LAPORAN
+  // ==========================
+  const handleDelete = async () => {
+  try {
+    const token =
+      localStorage.getItem("token");
+
+    const response = await fetch(
+      `http://localhost:5000/api/laporan/${id}`,
+      {
+        method: "DELETE",
+
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    const result =
+      await response.json();
+
+    console.log(result);
+
+    setShowDeleteModal(false);
+
+    window.location.href =
+      "/admin/dashboard";
+
+  } catch (error) {
+    console.log(error);
+  }
+};
+
   const getStatusStyle = () => {
     switch (status) {
       case "Pending":
@@ -261,8 +287,10 @@ export default function DetailLaporanPage() {
 
       {/* CONTAINER */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-6">
+
         {/* LEFT CONTENT */}
         <div className="lg:col-span-2 space-y-6">
+
           {/* IMAGE */}
           <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
             <img
@@ -274,8 +302,10 @@ export default function DetailLaporanPage() {
 
           {/* DETAIL */}
           <div className="bg-white rounded-3xl p-8 shadow-sm">
+
             {/* HEADER */}
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+
               <div>
                 <p className="text-sm text-gray-400 font-medium">
                   ID LAPORAN
@@ -291,10 +321,12 @@ export default function DetailLaporanPage() {
               >
                 {status}
               </span>
+
             </div>
 
             {/* INFO */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
+
               {/* KATEGORI */}
               <div className="flex items-start gap-4">
                 <div className="bg-green-100 p-3 rounded-xl">
@@ -341,9 +373,7 @@ export default function DetailLaporanPage() {
                   </p>
 
                   <h3 className="font-semibold text-gray-800 text-lg mt-1">
-                    {
-                      laporan.lokasi_kejadian
-                    }
+                    {laporan.lokasi_kejadian}
                   </h3>
                 </div>
               </div>
@@ -360,16 +390,16 @@ export default function DetailLaporanPage() {
                   </p>
 
                   <h3 className="font-semibold text-gray-800 text-lg mt-1">
-                    {
-                      laporan.tanggal_kejadian
-                    }
+                    {laporan.tanggal_kejadian}
                   </h3>
                 </div>
               </div>
+
             </div>
 
             {/* DESCRIPTION */}
             <div className="mt-10">
+
               <h2 className="text-2xl font-bold text-gray-800">
                 Deskripsi Laporan
               </h2>
@@ -377,12 +407,15 @@ export default function DetailLaporanPage() {
               <p className="text-gray-600 leading-relaxed mt-4 text-lg">
                 {laporan.isi_laporan}
               </p>
+
             </div>
 
             {/* PESAN ADMIN */}
             {adminMessage && (
               <div className="mt-10 bg-gray-50 border border-gray-200 rounded-2xl p-6">
+
                 <div className="flex items-center gap-3">
+
                   <div className="bg-[#0B6B2B]/10 p-3 rounded-xl">
                     <MessageSquareText className="text-[#0B6B2B]" />
                   </div>
@@ -396,27 +429,34 @@ export default function DetailLaporanPage() {
                       Informasi tindak lanjut laporan
                     </p>
                   </div>
+
                 </div>
 
                 <p className="text-gray-700 leading-relaxed mt-5">
                   {adminMessage}
                 </p>
+
               </div>
             )}
+
           </div>
         </div>
 
         {/* RIGHT SIDEBAR */}
         <div className="space-y-6">
+
           {/* STATUS */}
           <div className="bg-white rounded-3xl p-6 shadow-sm">
+
             <h2 className="text-2xl font-bold text-[#0B6B2B]">
               Status Penanganan
             </h2>
 
             <div className="mt-6 space-y-5">
+
               {/* DITERIMA */}
               <div className="flex items-center gap-4">
+
                 <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
                   <CheckCircle2
                     className="text-green-600"
@@ -435,10 +475,12 @@ export default function DetailLaporanPage() {
                     ).toLocaleString()}
                   </p>
                 </div>
+
               </div>
 
               {/* STATUS */}
               <div className="flex items-center gap-4">
+
                 <div
                   className={`w-10 h-10 rounded-full flex items-center justify-center
                   ${
@@ -449,6 +491,7 @@ export default function DetailLaporanPage() {
                       : "bg-yellow-100"
                   }`}
                 >
+
                   {status === "Ditolak" ? (
                     <XCircle
                       className="text-red-600"
@@ -465,6 +508,7 @@ export default function DetailLaporanPage() {
                       size={18}
                     />
                   )}
+
                 </div>
 
                 <div>
@@ -476,17 +520,21 @@ export default function DetailLaporanPage() {
                     Status terbaru laporan
                   </p>
                 </div>
+
               </div>
+
             </div>
           </div>
 
           {/* ACTION */}
           <div className="bg-white rounded-3xl p-6 shadow-sm">
+
             <h2 className="text-2xl font-bold text-[#0B6B2B]">
               Aksi Admin
             </h2>
 
             <div className="space-y-4 mt-6">
+
               {/* PROSES */}
               <button
                 onClick={() => {
@@ -538,11 +586,23 @@ export default function DetailLaporanPage() {
               >
                 Tolak Laporan
               </button>
+
+              {/* DELETE */}
+              <button
+                onClick={() =>
+                  setShowDeleteModal(true)
+                }
+                className="w-full bg-black hover:bg-gray-800 text-white py-3 rounded-2xl font-semibold transition flex items-center justify-center gap-2"
+              >
+                <Trash2 size={18} />
+                Hapus Laporan
+              </button>
             </div>
 
             {/* FORM SELESAI */}
             {showFinishInput && (
               <div className="mt-6">
+
                 <textarea
                   placeholder="Tulis pesan penyelesaian laporan..."
                   onChange={(e) =>
@@ -567,12 +627,14 @@ export default function DetailLaporanPage() {
                 >
                   Simpan Status Selesai
                 </button>
+
               </div>
             )}
 
             {/* FORM TOLAK */}
             {showRejectInput && (
               <div className="mt-6">
+
                 <textarea
                   placeholder="Tulis alasan laporan ditolak..."
                   onChange={(e) =>
@@ -597,11 +659,65 @@ export default function DetailLaporanPage() {
                 >
                   Simpan Penolakan
                 </button>
+
               </div>
             )}
+
           </div>
         </div>
       </div>
+
+            {/* DELETE MODAL */}
+              {showDeleteModal && (
+                <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 px-4">
+
+                  <div className="bg-white w-full max-w-md rounded-3xl p-8 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+
+                    <div className="flex justify-center">
+                      <div className="w-20 h-20 rounded-full bg-red-100 flex items-center justify-center">
+                        <Trash2
+                          className="text-red-600"
+                          size={35}
+                        />
+                      </div>
+                    </div>
+
+                    <h2 className="text-2xl font-bold text-center mt-6 text-gray-800">
+                      Hapus Laporan?
+                    </h2>
+
+                    <p className="text-center text-gray-500 mt-3 leading-relaxed">
+                      Laporan yang dihapus tidak bisa
+                      dikembalikan lagi.
+                    </p>
+
+                    <div className="grid grid-cols-2 gap-4 mt-8">
+
+                      {/* BATAL */}
+                      <button
+                        onClick={() =>
+                          setShowDeleteModal(false)
+                        }
+                        className="py-3 rounded-2xl border border-gray-300 font-semibold hover:bg-gray-100 transition"
+                      >
+                        Batal
+                      </button>
+
+                      {/* DELETE */}
+                      <button
+                        onClick={handleDelete}
+                        className="py-3 rounded-2xl bg-red-500 hover:bg-red-600 text-white font-semibold transition"
+                      >
+                        Hapus
+                      </button>
+
+                    </div>
+
+                  </div>
+
+                </div>
+              )}
+
     </main>
   );
 }

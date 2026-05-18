@@ -686,7 +686,7 @@ export default function Navbar() {
 
                     <label className="block text-sm font-semibold text-black mb-2">
 
-                      Username
+                      Nama Pengguna
 
                     </label>
 
@@ -732,7 +732,7 @@ export default function Navbar() {
 
                     <label className="block text-sm font-semibold text-black mb-2">
 
-                      Password
+                      Kata Sandi
 
                     </label>
 

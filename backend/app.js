@@ -6,6 +6,7 @@ const authRoutes = require("./routes/authRoutes");
 const laporanRoutes = require("./routes/laporanRoutes");
 const kategoriRoutes = require("./routes/kategoriRoutes");
 const komentarRoutes = require("./routes/komentarRoutes");
+const userRoutes = require("./routes/userRoutes");
 
 const app = express();
 
@@ -23,6 +24,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/laporan", laporanRoutes);
 app.use("/api/kategori", kategoriRoutes);
 app.use("/api/komentar", komentarRoutes);
+app.use("/api/users", userRoutes);
 
 const PORT = process.env.PORT || 5000;
 

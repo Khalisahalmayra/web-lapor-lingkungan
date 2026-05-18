@@ -1,24 +1,57 @@
 const jwt = require("jsonwebtoken");
 
 const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(401).json({ message: "Token tidak ada" });
-  }
-
-  const token = authHeader.split(" ")[1];
-
-  if (!token) {
-    return res.status(401).json({ message: "Format token salah" });
-  }
-
   try {
-    const verified = jwt.verify(token, process.env.JWT_SECRET);
-    req.user = verified;
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader) {
+      return res.status(401).json({
+        message: "Token tidak ada",
+      });
+    }
+
+    // =========================
+    // CEK FORMAT BEARER
+    // =========================
+    const parts = authHeader.split(" ");
+
+    if (parts.length !== 2 || parts[0] !== "Bearer") {
+      return res.status(401).json({
+        message: "Format token salah",
+      });
+    }
+
+    const token = parts[1];
+
+    // =========================
+    // VERIFY TOKEN
+    // =========================
+    const decoded = jwt.verify(
+      token,
+      process.env.JWT_SECRET
+    );
+
+    req.user = decoded;
+
     next();
   } catch (error) {
-    return res.status(403).json({ message: "Token tidak valid" });
+    console.log("JWT ERROR:", error.message);
+
+    // =========================
+    // TOKEN EXPIRED
+    // =========================
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({
+        message: "Token expired, silakan login ulang",
+      });
+    }
+
+    // =========================
+    // INVALID TOKEN
+    // =========================
+    return res.status(403).json({
+      message: "Token tidak valid",
+    });
   }
 };
 

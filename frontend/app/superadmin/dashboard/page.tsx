@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import Link from "next/link";
 
 import {
@@ -11,48 +13,131 @@ import {
 import SidebarSuperAdmin from "../../components/sidebarsuperadmin/page";
 import TopbarSuperAdmin from "../../components/topbarsuperadmin/page";
 
-export default function DashboardSuperAdminPage() {
-  const laporan = [
-    {
-      id: "ENV-2026-001",
-      kategori: "Pencemaran Sungai",
-      lokasi: "Jakarta Timur",
-      status: "Diproses",
-      color: "bg-yellow-100 text-yellow-700",
-    },
-    {
-      id: "ENV-2026-002",
-      kategori: "Sampah Liar",
-      lokasi: "Bandung",
-      status: "Selesai",
-      color: "bg-green-100 text-green-700",
-    },
-    {
-      id: "ENV-2026-003",
-      kategori: "Drainase Buruk",
-      lokasi: "Bekasi",
-      status: "Pending",
-      color: "bg-red-100 text-red-700",
-    },
-  ];
+interface Laporan {
+  id: number;
+  kategori_id: number;
+  category_name: string;
+  lokasi_kejadian: string;
+  status: string;
+}
 
-  const adminAktif = [
-    {
-      nama: "Admin Rahmat",
-      status: "Online",
-      image: "https://i.pravatar.cc/100?img=11",
-    },
-    {
-      nama: "Admin Sinta",
-      status: "Monitoring Laporan",
-      image: "https://i.pravatar.cc/100?img=12",
-    },
-    {
-      nama: "Admin Fajar",
-      status: "Review Aduan",
-      image: "https://i.pravatar.cc/100?img=13",
-    },
-  ];
+interface User {
+  id: number;
+  username: string;
+  role: string;
+  profile: string;
+}
+
+export default function DashboardSuperAdminPage() {
+  // =====================================
+  // STATE
+  // =====================================
+  const [laporan, setLaporan] = useState<
+    Laporan[]
+  >([]);
+
+  const [adminAktif, setAdminAktif] =
+    useState<User[]>([]);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  // =====================================
+  // FETCH DASHBOARD DATA
+  // =====================================
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const token =
+          localStorage.getItem("token");
+
+        // ================================
+        // FETCH LAPORAN
+        // ================================
+        const laporanResponse =
+          await fetch(
+            "http://localhost:5000/api/laporan",
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+        const laporanData =
+          await laporanResponse.json();
+
+        if (laporanResponse.ok) {
+          setLaporan(laporanData);
+        }
+
+        // ================================
+        // FETCH USERS
+        // ================================
+        const userResponse =
+          await fetch(
+            "http://localhost:5000/api/users",
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            }
+          );
+
+        const userData =
+          await userResponse.json();
+
+        if (userResponse.ok) {
+          const admins =
+            userData.filter(
+              (user: User) =>
+                user.role === "admin"
+            );
+
+          setAdminAktif(admins);
+        }
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  // =====================================
+  // TOTAL DATA
+  // =====================================
+  const totalLaporan =
+    laporan.length;
+
+  const laporanPending =
+    laporan.filter(
+      (item) =>
+        item.status === "pending"
+    ).length;
+
+  const laporanDiproses =
+    laporan.filter(
+      (item) =>
+        item.status === "diproses"
+    ).length;
+
+  const laporanSelesai =
+    laporan.filter(
+      (item) =>
+        item.status === "selesai"
+    ).length;
+
+  const resolusi =
+    totalLaporan > 0
+      ? (
+          (laporanSelesai /
+            totalLaporan) *
+          100
+        ).toFixed(1)
+      : "0";
 
   return (
     <main className="flex min-h-screen bg-[#f4f5f7]">
@@ -76,18 +161,22 @@ export default function DashboardSuperAdminPage() {
               </h1>
 
               <p className="text-gray-500 mt-3 text-lg">
-                Monitoring keseluruhan sistem laporan lingkungan
+                Monitoring keseluruhan
+                sistem laporan lingkungan
                 secara real-time.
               </p>
             </div>
 
             <div className="bg-[#e8edf7] px-5 py-3 rounded-xl text-gray-700 font-medium shadow-sm">
-              Terakhir diperbarui: 14:30 WIB
+              {loading
+                ? "Loading..."
+                : "Data realtime"}
             </div>
           </div>
 
           {/* CARDS */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mt-8">
+            {/* TOTAL */}
             <div className="bg-white rounded-2xl p-6 border border-[#0B6B2B] shadow-sm">
               <p className="text-gray-500 font-semibold">
                 TOTAL LAPORAN
@@ -95,15 +184,16 @@ export default function DashboardSuperAdminPage() {
 
               <div className="flex items-end gap-3 mt-5">
                 <h2 className="text-5xl font-bold text-[#052e24]">
-                  1,284
+                  {totalLaporan}
                 </h2>
 
                 <span className="text-green-600 font-semibold mb-2">
-                  ↑ 12%
+                  realtime
                 </span>
               </div>
             </div>
 
+            {/* PENDING */}
             <div className="bg-white rounded-2xl p-6 border border-[#0B6B2B] shadow-sm">
               <p className="text-gray-500 font-semibold">
                 LAPORAN PENDING
@@ -111,15 +201,16 @@ export default function DashboardSuperAdminPage() {
 
               <div className="flex items-end gap-3 mt-5">
                 <h2 className="text-5xl font-bold text-[#052e24]">
-                  42
+                  {laporanPending}
                 </h2>
 
                 <span className="text-red-500 font-semibold mb-2">
-                  △ 5 Baru
+                  perlu review
                 </span>
               </div>
             </div>
 
+            {/* RESOLUSI */}
             <div className="bg-white rounded-2xl p-6 border border-[#0B6B2B] shadow-sm">
               <p className="text-gray-500 font-semibold">
                 RESOLUSI SISTEM (%)
@@ -127,27 +218,28 @@ export default function DashboardSuperAdminPage() {
 
               <div className="flex items-center justify-between mt-5">
                 <h2 className="text-5xl font-bold text-[#052e24]">
-                  98.2%
+                  {resolusi}%
                 </h2>
 
                 <div className="w-10 h-3 rounded-full bg-green-600"></div>
               </div>
             </div>
 
+            {/* DIPROSES */}
             <div className="bg-white rounded-2xl p-6 border border-red-500 shadow-sm">
               <p className="text-gray-500 font-semibold">
-                PERINGATAN AKTIF
+                LAPORAN DIPROSES
               </p>
 
               <div className="flex items-center gap-4 mt-5">
                 <h2 className="text-5xl font-bold text-red-600">
-                  3
+                  {laporanDiproses}
                 </h2>
 
                 <p className="text-gray-600 italic">
-                  Membutuhkan
+                  Sedang
                   <br />
-                  Tindakan
+                  Ditangani
                 </p>
               </div>
             </div>
@@ -164,8 +256,8 @@ export default function DashboardSuperAdminPage() {
                   </h2>
 
                   <p className="text-gray-500 mt-1">
-                    Super admin hanya dapat memantau status
-                    laporan
+                    Super admin hanya dapat
+                    memantau status laporan
                   </p>
                 </div>
 
@@ -195,32 +287,53 @@ export default function DashboardSuperAdminPage() {
                   </thead>
 
                   <tbody>
-                    {laporan.map((item, index) => (
-                      <tr
-                        key={index}
-                        className="border-b hover:bg-gray-50 transition"
-                      >
-                        <td className="px-6 py-5 font-bold text-[#052e24]">
-                          {item.id}
-                        </td>
+                    {laporan
+                      .slice(0, 6)
+                      .map((item) => (
+                        <tr
+                          key={item.id}
+                          className="border-b hover:bg-gray-50 transition"
+                        >
+                          <td className="px-6 py-5 font-bold text-[#052e24]">
+                            #{item.id}
+                          </td>
 
-                        <td className="px-6 py-5 text-black">
-                          {item.kategori}
-                        </td>
+                          <td className="px-6 py-5 text-black">
+                            {
+                              item.category_name
+                            }
+                          </td>
 
-                        <td className="px-6 py-5 text-black">
-                          {item.lokasi}
-                        </td>
+                          <td className="px-6 py-5 text-black">
+                            {
+                              item.lokasi_kejadian
+                            }
+                          </td>
 
-                        <td className="px-6 py-5">
-                          <span
-                            className={`px-4 py-2 rounded-full text-sm font-semibold ${item.color}`}
-                          >
-                            {item.status}
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                          <td className="px-6 py-5">
+                            <span
+                              className={`px-4 py-2 rounded-full text-sm font-semibold
+                              ${
+                                item.status === "pending"
+                                  ? "bg-yellow-100 text-yellow-700"
+
+                                  : item.status === "diproses"
+                                  ? "bg-orange-100 text-orange-700"
+
+                                  : item.status === "selesai"
+                                  ? "bg-green-100 text-green-700"
+
+                                  : item.status === "ditolak"
+                                  ? "bg-red-100 text-red-700"
+
+                                  : "bg-gray-100 text-gray-700"
+                              }`}
+                            >
+                              {item.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -235,7 +348,8 @@ export default function DashboardSuperAdminPage() {
                   </h2>
 
                   <p className="text-gray-500 mt-1">
-                    Monitoring performa sistem
+                    Monitoring performa
+                    sistem
                   </p>
                 </div>
 
@@ -303,7 +417,8 @@ export default function DashboardSuperAdminPage() {
                 </h2>
 
                 <p className="text-gray-500 mt-1">
-                  Daftar admin yang sedang aktif saat ini
+                  Daftar admin yang sedang
+                  aktif saat ini
                 </p>
               </div>
 
@@ -317,38 +432,50 @@ export default function DashboardSuperAdminPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-              {adminAktif.map((admin, index) => (
-                <div
-                  key={index}
-                  className="border border-gray-200 rounded-2xl p-5 hover:shadow-md transition"
-                >
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={admin.image}
-                      alt="admin"
-                      className="w-14 h-14 rounded-full object-cover"
-                    />
+              {adminAktif.map(
+                (admin, index) => (
+                  <div
+                    key={index}
+                    className="border border-gray-200 rounded-2xl p-5 hover:shadow-md transition"
+                  >
+                    <div className="flex items-center gap-4">
+                      {admin.profile ? (
+                        <img
+                          src={
+                            admin.profile
+                          }
+                          alt="admin"
+                          className="w-14 h-14 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center">
+                          <Users className="text-white" />
+                        </div>
+                      )}
 
-                    <div>
-                      <h3 className="font-bold text-black">
-                        {admin.nama}
-                      </h3>
+                      <div>
+                        <h3 className="font-bold text-black">
+                          {
+                            admin.username
+                          }
+                        </h3>
 
-                      <p className="text-sm text-gray-500 mt-1">
-                        {admin.status}
-                      </p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          Administrator
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-green-500"></div>
+
+                      <span className="font-medium text-black">
+                        Online
+                      </span>
                     </div>
                   </div>
-
-                  <div className="mt-5 flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500"></div>
-
-                    <span className="font-medium text-black">
-                      Online
-                    </span>
-                  </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           </div>
         </div>

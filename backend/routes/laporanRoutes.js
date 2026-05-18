@@ -8,6 +8,7 @@ const {
   getLaporanFeed,
   getRiwayatUser,
   updateStatusLaporan,
+   deleteLaporan,
 } = require("../controller/laporanController");
 
 const {
@@ -74,6 +75,15 @@ router.post(
   "/",
   authMiddleware,
   createLaporan
+);
+
+// ==========================
+// DELETE LAPORAN
+// ==========================
+router.delete(
+  "/:id",
+  authMiddleware,
+  deleteLaporan
 );
 
 module.exports = router;

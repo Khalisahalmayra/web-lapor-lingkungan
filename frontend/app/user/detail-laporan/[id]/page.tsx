@@ -343,15 +343,15 @@ export default function DetailLaporanPage() {
                 )}
 
                 <div>
-                  <p className="font-semibold">
+                  <p className="font-semibold text-black">
                     Dilaporkan Oleh
                   </p>
 
-                  <p>{laporan.username}</p>
+                  <p className="text-black">{laporan.username}</p>
                 </div>
               </div>
 
-              <div className="mt-5 flex items-center gap-2 text-gray-600">
+              <div className="mt-5 flex items-center gap-2 text-black">
                 <MapPin className="w-5 h-5" />
                 {laporan.lokasi_kejadian}
               </div>
@@ -429,7 +429,7 @@ export default function DetailLaporanPage() {
 
               <div className="flex items-center justify-between flex-wrap gap-4">
 
-                <h2 className="text-3xl font-bold">
+                <h2 className="text-3xl font-bold text-black">
                   Komentar (
                   {laporan.total_komen || 0})
                 </h2>
@@ -477,7 +477,7 @@ export default function DetailLaporanPage() {
                         e.target.value
                       )
                     }
-                    className="w-full h-[120px] border rounded-2xl p-5"
+                    className="w-full h-[120px] text-black border rounded-2xl p-5"
                     placeholder="Tulis komentar..."
                   />
 
@@ -501,7 +501,7 @@ export default function DetailLaporanPage() {
 
               {/* EMPTY */}
               {komentar.length === 0 && (
-                <p className="text-center mt-8 text-gray-500">
+                <p className="text-center mt-8 text-black">
                   Belum ada komentar
                 </p>
               )}
@@ -530,7 +530,7 @@ export default function DetailLaporanPage() {
                     </div>
                   )}
 
-                  <div className="flex-1 border rounded-2xl p-5 bg-[#FAFAFA]">
+                  <div className="flex-1 border rounded-2xl text-black p-5 bg-[#FAFAFA]">
 
                     <div className="flex items-center justify-between flex-wrap gap-2">
 
@@ -538,7 +538,7 @@ export default function DetailLaporanPage() {
                         {item.username}
                       </h3>
 
-                      <p className="text-sm text-gray-500">
+                      <p className="text-sm text-black">
                         {new Date(
                           item.created_at
                         ).toLocaleDateString(
@@ -548,7 +548,7 @@ export default function DetailLaporanPage() {
 
                     </div>
 
-                    <p className="mt-3 text-gray-700">
+                    <p className="mt-3 text-black">
                       {item.isi_komentar}
                     </p>
 
@@ -567,7 +567,7 @@ export default function DetailLaporanPage() {
             {/* LAPORAN SERUPA */}
             <div className="bg-white rounded-2xl p-6">
 
-              <h2 className="text-2xl font-bold mb-6">
+              <h2 className="text-2xl font-bold text-black mb-6">
                 Laporan Serupa
               </h2>
 
