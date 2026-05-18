@@ -24,7 +24,11 @@ export default function DetailLaporanPage() {
   const [laporanSerupa, setLaporanSerupa] = useState<any[]>([]);
   const [komentar, setKomentar] = useState<any[]>([]);
   const [isiKomentar, setIsiKomentar] = useState("");
+  const [loadingLike, setLoadingLike] = useState(false);
 
+  // =====================================
+  // GET DETAIL LAPORAN
+  // =====================================
   useEffect(() => {
     if (!id) return;
 
@@ -32,8 +36,10 @@ export default function DetailLaporanPage() {
       .then((res) => res.json())
       .then((data) => {
         const detail = data.data || data;
+
         setLaporan(detail);
 
+        // laporan serupa
         fetch("http://localhost:5000/api/laporan")
           .then((res) => res.json())
           .then((laporanData) => {
@@ -53,42 +59,119 @@ export default function DetailLaporanPage() {
       .catch(console.log);
   }, [id]);
 
+  // =====================================
+  // GET KOMENTAR
+  // =====================================
   useEffect(() => {
     if (!id) return;
 
     fetch(`http://localhost:5000/api/komentar/laporan/${id}`)
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data)) setKomentar(data);
-        else if (Array.isArray(data.data)) setKomentar(data.data);
-        else setKomentar([]);
+        if (Array.isArray(data)) {
+          setKomentar(data);
+        } else if (Array.isArray(data.data)) {
+          setKomentar(data.data);
+        } else {
+          setKomentar([]);
+        }
       })
       .catch(console.log);
   }, [id]);
 
+  // =====================================
+  // LOADING
+  // =====================================
   if (!laporan) {
     return (
       <>
         <Navbar />
+
         <main className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
-          <h1 className="text-2xl font-bold text-black">Loading...</h1>
+          <h1 className="text-2xl font-bold text-black">
+            Loading...
+          </h1>
         </main>
       </>
     );
   }
 
+  // =====================================
+  // SHARE
+  // =====================================
   const handleShare = async () => {
     try {
-      await navigator.share({
-        title: laporan.judul_laporan,
-        text: laporan.isi_laporan,
-        url: window.location.href,
-      });
+      if (navigator.share) {
+        await navigator.share({
+          title: laporan.judul_laporan,
+          text: laporan.isi_laporan,
+          url: window.location.href,
+        });
+      } else {
+        await navigator.clipboard.writeText(
+          window.location.href
+        );
+
+        alert("Link berhasil disalin");
+      }
     } catch (error) {
       console.log(error);
     }
   };
 
+  // =====================================
+  // LIKE / DUKUNG
+  // =====================================
+  const handleLike = async () => {
+    try {
+      setLoadingLike(true);
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        alert("Silahkan login terlebih dahulu");
+        return;
+      }
+
+      const response = await fetch(
+        `http://localhost:5000/api/laporan/${id}/like`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            laporan_id: id,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setLaporan((prev: any) => ({
+          ...prev,
+          total_like: data.liked
+            ? (prev.total_like || 0) + 1
+            : (prev.total_like || 0) - 1,
+        }));
+
+        alert(data.message);
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.log(error);
+      alert("Terjadi kesalahan");
+    } finally {
+      setLoadingLike(false);
+    }
+  };
+
+  // =====================================
+  // KIRIM KOMENTAR
+  // =====================================
   const handleKirimKomentar = async () => {
     if (!isiKomentar.trim()) {
       alert("Komentar tidak boleh kosong");
@@ -96,16 +179,22 @@ export default function DetailLaporanPage() {
     }
 
     try {
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const token = localStorage.getItem("token");
+
+      const user = JSON.parse(
+        localStorage.getItem("user") || "{}"
+      );
 
       const response = await fetch(
         "http://localhost:5000/api/komentar",
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
           body: JSON.stringify({
             laporan_id: id,
-            user_id: user.id,
             isi_komentar: isiKomentar,
           }),
         }
@@ -115,15 +204,17 @@ export default function DetailLaporanPage() {
 
       if (response.ok) {
         setKomentar((prev) => [
-          ...prev,
-          data.data || {
+          {
             isi_komentar: isiKomentar,
             username: user.username || "User",
+            foto_profile: user.foto_profile || null,
             created_at: new Date(),
           },
+          ...prev,
         ]);
 
         setIsiKomentar("");
+
         alert("Komentar berhasil dikirim");
       } else {
         alert(data.message || "Gagal mengirim komentar");
@@ -139,6 +230,7 @@ export default function DetailLaporanPage() {
       <Navbar />
 
       <main className="min-h-screen bg-[#F5F5F5] px-6 lg:px-10 py-8">
+
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
 
           {/* LEFT */}
@@ -155,7 +247,10 @@ export default function DetailLaporanPage() {
 
                 <div className="flex items-center gap-2 text-sm text-black">
                   <CalendarDays className="w-4 h-4" />
-                  {new Date(laporan.created_at).toLocaleDateString("id-ID")}
+
+                  {new Date(
+                    laporan.created_at
+                  ).toLocaleDateString("id-ID")}
                 </div>
               </div>
 
@@ -163,12 +258,29 @@ export default function DetailLaporanPage() {
                 {laporan.judul_laporan}
               </h1>
 
+              {/* USER */}
               <div className="mt-6 border rounded-2xl p-4 flex items-center gap-4">
-                <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold text-xl">
-                  {laporan.username?.charAt(0)}
-                </div>
+
+                {laporan.foto_profile ? (
+                  <Image
+                    src={laporan.foto_profile}
+                    alt="Profile"
+                    width={56}
+                    height={56}
+                    className="rounded-full object-cover w-14 h-14"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold text-xl">
+                    {laporan.username?.charAt(0)}
+                  </div>
+                )}
+
                 <div>
-                  <p className="font-semibold">Dilaporkan Oleh</p>
+                  <p className="font-semibold">
+                    Dilaporkan Oleh
+                  </p>
+
                   <p>{laporan.username}</p>
                 </div>
               </div>
@@ -181,6 +293,7 @@ export default function DetailLaporanPage() {
 
             {/* IMAGE */}
             <div className="relative mt-6 w-full h-[500px] rounded-2xl overflow-hidden">
+
               <Image
                 src={laporan.gambar || "/image/laporan.png"}
                 alt="Laporan"
@@ -188,38 +301,53 @@ export default function DetailLaporanPage() {
                 unoptimized
                 className="object-cover"
               />
+
             </div>
 
             {/* DESKRIPSI */}
             <div className="mt-6 bg-[#005F18] rounded-2xl p-6">
 
               <div className="flex items-center gap-4">
+
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                   <MessageCircle className="w-5 h-5 text-[#005F18]" />
                 </div>
+
                 <h2 className="text-2xl font-bold text-white">
                   Detail Deskripsi Laporan
                 </h2>
+
               </div>
 
               <div className="mt-6 border border-white rounded-2xl p-6">
+
                 <p className="text-white whitespace-pre-line">
                   {laporan.isi_laporan}
                 </p>
+
               </div>
 
-              <div className="flex gap-5 mt-8">
+              {/* BUTTON */}
+              <div className="flex gap-5 mt-8 flex-wrap">
 
-                <button className="px-10 py-4 rounded-xl bg-white text-black font-bold flex items-center gap-3">
+                {/* DUKUNG */}
+                <button
+                  onClick={handleLike}
+                  disabled={loadingLike}
+                  className="px-10 py-4 rounded-xl bg-white text-black font-bold flex items-center gap-3 hover:scale-105 transition"
+                >
                   <ThumbsUp className="w-5 h-5" />
+
                   Dukung ({laporan.total_like || 0})
                 </button>
 
+                {/* SHARE */}
                 <button
                   onClick={handleShare}
-                  className="px-10 py-4 rounded-xl bg-white text-black font-bold flex items-center gap-3"
+                  className="px-10 py-4 rounded-xl bg-white text-black font-bold flex items-center gap-3 hover:scale-105 transition"
                 >
                   <Share2 className="w-5 h-5" />
+
                   Bagikan
                 </button>
 
@@ -229,22 +357,32 @@ export default function DetailLaporanPage() {
             {/* KOMENTAR */}
             <div className="mt-10 bg-white rounded-2xl p-6 border">
 
-              <h2 className="text-3xl font-bold">Komentar</h2>
+              <h2 className="text-3xl font-bold">
+                Komentar
+              </h2>
 
+              {/* INPUT KOMENTAR */}
               <div className="flex gap-5 mt-8">
 
-                <div className="w-14 h-14 rounded-full bg-[#0B6B2B]" />
+                <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
+                  {JSON.parse(
+                    localStorage.getItem("user") || "{}"
+                  )?.username?.charAt(0) || "U"}
+                </div>
 
                 <div className="flex-1">
 
                   <textarea
                     value={isiKomentar}
-                    onChange={(e) => setIsiKomentar(e.target.value)}
+                    onChange={(e) =>
+                      setIsiKomentar(e.target.value)
+                    }
                     className="w-full h-[120px] border rounded-2xl p-5"
                     placeholder="Tulis komentar..."
                   />
 
                   <div className="flex justify-end mt-4">
+
                     <button
                       onClick={handleKirimKomentar}
                       className="px-10 py-3 rounded-xl bg-[#005F18] text-white flex items-center gap-2"
@@ -252,30 +390,63 @@ export default function DetailLaporanPage() {
                       <Send className="w-5 h-5" />
                       Kirim
                     </button>
+
                   </div>
 
                 </div>
               </div>
 
+              {/* DATA KOSONG */}
               {komentar.length === 0 && (
                 <p className="text-center mt-8 text-gray-500">
                   Belum ada komentar
                 </p>
               )}
 
+              {/* LIST KOMENTAR */}
               {komentar.map((item, index) => (
-                <div key={index} className="flex gap-5 mt-8">
+                <div
+                  key={index}
+                  className="flex gap-5 mt-8"
+                >
 
-                  <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
-                    {item.username?.charAt(0) || "U"}
-                  </div>
+                  {/* FOTO PROFILE */}
+                  {item.foto_profile ? (
+                    <Image
+                      src={item.foto_profile}
+                      alt="Profile"
+                      width={56}
+                      height={56}
+                      className="rounded-full object-cover w-14 h-14"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
+                      {item.username?.charAt(0) || "U"}
+                    </div>
+                  )}
 
-                  <div className="flex-1 border rounded-2xl p-5">
-                    <h3 className="font-bold">{item.username}</h3>
-                    <p className="text-sm text-gray-500">
-                      {new Date(item.created_at).toLocaleDateString("id-ID")}
+                  {/* ISI */}
+                  <div className="flex-1 border rounded-2xl p-5 bg-[#FAFAFA]">
+
+                    <div className="flex items-center justify-between flex-wrap gap-2">
+
+                      <h3 className="font-bold text-black">
+                        {item.username}
+                      </h3>
+
+                      <p className="text-sm text-gray-500">
+                        {new Date(
+                          item.created_at
+                        ).toLocaleDateString("id-ID")}
+                      </p>
+
+                    </div>
+
+                    <p className="mt-3 text-gray-700">
+                      {item.isi_komentar}
                     </p>
-                    <p className="mt-3">{item.isi_komentar}</p>
+
                   </div>
 
                 </div>
@@ -288,6 +459,7 @@ export default function DetailLaporanPage() {
           {/* RIGHT */}
           <div className="space-y-6">
 
+            {/* LAPORAN SERUPA */}
             <div className="bg-white rounded-2xl p-6">
 
               <h2 className="text-2xl font-bold mb-6">
@@ -299,24 +471,38 @@ export default function DetailLaporanPage() {
                   key={item.id}
                   href={`/user/detail-laporan/${item.id}`}
                 >
-                  <div className="flex gap-4 mb-5">
+
+                  <div className="flex gap-4 mb-5 hover:bg-[#F5F5F5] p-2 rounded-xl transition">
+
                     <Image
-                      src={item.gambar || "/image/laporan.png"}
+                      src={
+                        item.gambar ||
+                        "/image/laporan.png"
+                      }
                       alt=""
                       width={90}
                       height={90}
                       className="rounded-xl object-cover"
                     />
+
                     <div>
-                      <h3 className="font-bold">{item.judul_laporan}</h3>
-                      <p className="text-sm">{item.lokasi_kejadian}</p>
+                      <h3 className="font-bold">
+                        {item.judul_laporan}
+                      </h3>
+
+                      <p className="text-sm">
+                        {item.lokasi_kejadian}
+                      </p>
                     </div>
+
                   </div>
+
                 </Link>
               ))}
 
             </div>
 
+            {/* HUBUNGI */}
             <div className="bg-[#5A8516] p-6 rounded-2xl text-white">
 
               <h2 className="text-2xl font-bold">
@@ -328,8 +514,11 @@ export default function DetailLaporanPage() {
               </p>
 
               <button className="mt-6 w-full bg-white text-black py-3 rounded-xl flex items-center justify-center gap-2">
+
                 <Phone className="w-5 h-5" />
+
                 Hubungi Kami
+
               </button>
 
             </div>

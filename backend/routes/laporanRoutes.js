@@ -5,15 +5,65 @@ const {
   getLaporan,
   getDetailLaporan,
   createLaporan,
+  getLaporanFeed,
+  getRiwayatUser,
 } = require("../controller/laporanController");
+
+const {
+  toggleLikeLaporan,
+} = require("../controller/likeController");
 
 const authMiddleware = require("../middleware/authMiddleware");
 
-// GET
-router.get("/", getLaporan);
-router.get("/:id", getDetailLaporan);
+// ==========================
+// PUBLIC FEED
+// ==========================
+router.get(
+  "/feed",
+  getLaporanFeed
+);
 
-// POST
-router.post("/", authMiddleware, createLaporan);
+// ==========================
+// RIWAYAT USER LOGIN
+// ==========================
+router.get(
+  "/riwayat",
+  authMiddleware,
+  getRiwayatUser
+);
+
+// ==========================
+// LIKE / UNLIKE LAPORAN
+// ==========================
+router.post(
+  "/:id/like",
+  authMiddleware,
+  toggleLikeLaporan
+);
+
+// ==========================
+// DETAIL LAPORAN
+// ==========================
+router.get(
+  "/:id",
+  getDetailLaporan
+);
+
+// ==========================
+// SEMUA LAPORAN
+// ==========================
+router.get(
+  "/",
+  getLaporan
+);
+
+// ==========================
+// CREATE LAPORAN
+// ==========================
+router.post(
+  "/",
+  authMiddleware,
+  createLaporan
+);
 
 module.exports = router;

@@ -497,6 +497,7 @@ export default function LaporPage() {
                   onChange={(e) =>
                     setJudul(e.target.value)
                   }
+                  placeholder="Masukkan Judul Laporan Anda"
                   className="w-full border border-green-300 bg-transparent rounded-lg px-5 py-4 text-white outline-none"
                 />
 
@@ -569,6 +570,7 @@ export default function LaporPage() {
                     onChange={(e) =>
                       setIsi(e.target.value)
                     }
+                    placeholder="Masukkan Deskripsi Laporan Anda"
                     className="border border-green-300 rounded-lg bg-transparent p-5 min-h-[220px] text-white outline-none"
                   />
 
@@ -617,6 +619,7 @@ export default function LaporPage() {
                   onChange={(e) =>
                     setLokasi(e.target.value)
                   }
+                  placeholder="Masukkan lokasi kejadian"
                   className="w-full border border-green-300 bg-transparent rounded-lg px-5 py-4 text-white outline-none"
                 />
 

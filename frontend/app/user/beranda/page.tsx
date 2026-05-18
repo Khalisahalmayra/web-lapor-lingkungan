@@ -357,7 +357,7 @@ export default function BerandaPage() {
 
                   <button
                     onClick={() => setActiveFilter("Terbaru")}
-                    className={`px-5 py-3 rounded-xl border font-semibold flex items-center gap-2 ${
+                    className={`px-5 py-3 text-black rounded-xl border font-semibold flex items-center gap-2 ${
                       activeFilter === "Terbaru"
                         ? "bg-[#E8F0E8] border-black"
                         : "bg-white border-gray-300"
@@ -369,7 +369,7 @@ export default function BerandaPage() {
 
                   <button
                     onClick={() => setActiveFilter("Terpopuler")}
-                    className={`px-5 py-3 rounded-xl border font-semibold flex items-center gap-2 ${
+                    className={`px-5 py-3 rounded-xl text-black border font-semibold flex items-center gap-2 ${
                       activeFilter === "Terpopuler"
                         ? "bg-[#E8F0E8] border-black"
                         : "bg-white border-gray-300"

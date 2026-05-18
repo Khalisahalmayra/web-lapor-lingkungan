@@ -136,8 +136,100 @@ const profile = async (req, res) => {
   }
 };
 
+// =========================
+// UPDATE PROFILE
+// =========================
+const updateProfile = async (
+  req,
+  res
+) => {
+
+  try {
+
+    const {
+      username,
+      email,
+      password,
+      profile,
+    } = req.body;
+
+    let hashedPassword = null;
+
+    // kalau password diisi
+    if (password && password !== "") {
+
+      hashedPassword =
+        await bcrypt.hash(password, 10);
+    }
+
+    // ambil user lama
+    const oldUser = await pool.query(
+      `
+      SELECT *
+      FROM users
+      WHERE id = $1
+      `,
+      [req.user.id]
+    );
+
+    if (
+      oldUser.rows.length === 0
+    ) {
+      return res.status(404).json({
+        message:
+          "User tidak ditemukan",
+      });
+    }
+
+    const currentUser =
+      oldUser.rows[0];
+
+    // update database
+    const result = await pool.query(
+      `
+      UPDATE users
+      SET
+        username = $1,
+        email = $2,
+        password = $3,
+        profile = $4
+      WHERE id = $5
+      RETURNING id, username, email, role, profile
+      `,
+      [
+        username ||
+          currentUser.username,
+
+        email ||
+          currentUser.email,
+
+        hashedPassword ||
+          currentUser.password,
+
+        profile ||
+          currentUser.profile,
+
+        req.user.id,
+      ]
+    );
+
+    return res.json({
+      message:
+        "Profile berhasil diupdate",
+      user: result.rows[0],
+    });
+
+  } catch (error) {
+
+    return res.status(500).json({
+      message: error.message,
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   profile,
+  updateProfile,
 };
