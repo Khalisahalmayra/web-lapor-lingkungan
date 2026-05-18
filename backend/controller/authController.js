@@ -7,30 +7,52 @@ const jwt = require("jsonwebtoken");
 // =========================
 const register = async (req, res) => {
   try {
-    const { username, email, password } = req.body;
+
+    const {
+      username,
+      email,
+      password,
+    } = req.body;
 
     // cek email
     const userCheck = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
+      `
+      SELECT *
+      FROM users
+      WHERE email = $1
+      `,
       [email]
     );
 
     if (userCheck.rows.length > 0) {
       return res.status(400).json({
-        message: "Email sudah digunakan",
+        message:
+          "Email sudah digunakan",
       });
     }
 
     // hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword =
+      await bcrypt.hash(password, 10);
 
-    // insert user (default role = user)
+    // insert user
     await pool.query(
       `
-      INSERT INTO users(username, email, password, role)
-      VALUES($1, $2, $3, $4)
+      INSERT INTO users
+      (
+        username,
+        email,
+        password,
+        role
+      )
+      VALUES ($1, $2, $3, $4)
       `,
-      [username, email, hashedPassword, "user"]
+      [
+        username,
+        email,
+        hashedPassword,
+        "user",
+      ]
     );
 
     return res.status(201).json({
@@ -38,6 +60,7 @@ const register = async (req, res) => {
     });
 
   } catch (error) {
+
     return res.status(500).json({
       message: error.message,
     });
@@ -45,28 +68,48 @@ const register = async (req, res) => {
 };
 
 // =========================
-// LOGIN (FIXED FULL RESPONSE)
+// LOGIN
 // =========================
 const login = async (req, res) => {
   try {
-    const { email, password } = req.body;
 
-    // ambil user + role
+    const {
+      email,
+      password,
+    } = req.body;
+
+    // ambil user
     const result = await pool.query(
-      "SELECT id, username, email, password, role FROM users WHERE email = $1",
+      `
+      SELECT
+        id,
+        username,
+        email,
+        password,
+        role,
+        profile
+      FROM users
+      WHERE email = $1
+      `,
       [email]
     );
 
+    // cek user
     if (result.rows.length === 0) {
       return res.status(404).json({
-        message: "User tidak ditemukan",
+        message:
+          "User tidak ditemukan",
       });
     }
 
     const user = result.rows[0];
 
     // cek password
-    const validPassword = await bcrypt.compare(password, user.password);
+    const validPassword =
+      await bcrypt.compare(
+        password,
+        user.password
+      );
 
     if (!validPassword) {
       return res.status(400).json({
@@ -86,19 +129,22 @@ const login = async (req, res) => {
       }
     );
 
-    // 🔥 FIX PENTING: kirim user ke frontend
+    // response
     return res.json({
       message: "Login berhasil",
       token,
+
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
         role: user.role,
+        profile: user.profile,
       },
     });
 
   } catch (error) {
+
     return res.status(500).json({
       message: error.message,
     });
@@ -106,30 +152,40 @@ const login = async (req, res) => {
 };
 
 // =========================
-// PROFILE (OPTIONAL AMAN)
+// PROFILE
 // =========================
 const profile = async (req, res) => {
   try {
+
     const result = await pool.query(
       `
-      SELECT id, username, email, role
+      SELECT
+        id,
+        username,
+        email,
+        role,
+        profile
       FROM users
       WHERE id = $1
       `,
       [req.user.id]
     );
 
+    // cek user
     if (result.rows.length === 0) {
       return res.status(404).json({
-        message: "User tidak ditemukan",
+        message:
+          "User tidak ditemukan",
       });
     }
 
-    return res.json({
-      user: result.rows[0],
-    });
+    // response langsung
+    return res.json(
+      result.rows[0]
+    );
 
   } catch (error) {
+
     return res.status(500).json({
       message: error.message,
     });
@@ -143,7 +199,6 @@ const updateProfile = async (
   req,
   res
 ) => {
-
   try {
 
     const {
@@ -152,15 +207,6 @@ const updateProfile = async (
       password,
       profile,
     } = req.body;
-
-    let hashedPassword = null;
-
-    // kalau password diisi
-    if (password && password !== "") {
-
-      hashedPassword =
-        await bcrypt.hash(password, 10);
-    }
 
     // ambil user lama
     const oldUser = await pool.query(
@@ -172,6 +218,7 @@ const updateProfile = async (
       [req.user.id]
     );
 
+    // cek user
     if (
       oldUser.rows.length === 0
     ) {
@@ -184,6 +231,22 @@ const updateProfile = async (
     const currentUser =
       oldUser.rows[0];
 
+    // password baru
+    let hashedPassword =
+      currentUser.password;
+
+    // kalau password diisi
+    if (
+      password &&
+      password.trim() !== ""
+    ) {
+      hashedPassword =
+        await bcrypt.hash(
+          password,
+          10
+        );
+    }
+
     // update database
     const result = await pool.query(
       `
@@ -194,7 +257,13 @@ const updateProfile = async (
         password = $3,
         profile = $4
       WHERE id = $5
-      RETURNING id, username, email, role, profile
+
+      RETURNING
+        id,
+        username,
+        email,
+        role,
+        profile
       `,
       [
         username ||
@@ -203,8 +272,7 @@ const updateProfile = async (
         email ||
           currentUser.email,
 
-        hashedPassword ||
-          currentUser.password,
+        hashedPassword,
 
         profile ||
           currentUser.profile,
@@ -216,6 +284,7 @@ const updateProfile = async (
     return res.json({
       message:
         "Profile berhasil diupdate",
+
       user: result.rows[0],
     });
 

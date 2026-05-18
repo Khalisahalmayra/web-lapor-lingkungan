@@ -31,71 +31,96 @@ const LoginPage = () => {
   };
 
   // =========================
-  // HANDLE LOGIN (FIXED SAFE ROLE)
+  // FETCH PROFILE (BACKEND CONNECT)
   // =========================
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const getProfile = async (token: string) => {
+    const res = await fetch("http://localhost:5000/api/auth/profile", {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Gagal mengambil profile");
+    }
+
+    return await res.json();
+  };
+
+  // =========================
+  // HANDLE LOGIN
+  // =========================
+  const handleSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
     e.preventDefault();
 
     setServerError("");
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          email: formData.email,
-          password: formData.password,
-        }),
-      });
+      const response = await fetch(
+        "http://localhost:5000/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email: formData.email,
+            password: formData.password,
+          }),
+        }
+      );
 
       const data = await response.json();
 
-      console.log("LOGIN RESPONSE:", data);
-
+      // =========================
+      // ERROR HANDLING
+      // =========================
       if (!response.ok) {
-        throw new Error(data.message || "Login gagal");
+        setServerError(data.message || "Email atau password salah");
+        return;
+      }
+
+      if (!data.token) {
+        setServerError("Token tidak ditemukan");
+        return;
       }
 
       // =========================
-      // VALIDASI USER (FIX IMPORTANT)
+      // SAVE TOKEN ONLY
       // =========================
-      const user = data?.user;
-
-      if (!user) {
-        throw new Error("Data user tidak ditemukan dari server");
-      }
-
-      if (!user.role) {
-        throw new Error("Role user tidak tersedia");
-      }
+      localStorage.setItem("token", data.token);
 
       // =========================
-      // SIMPAN TOKEN & USER
+      // GET USER FROM BACKEND (PROFILE)
       // =========================
-      localStorage.setItem("token", data.token || "");
-      localStorage.setItem("user", JSON.stringify(user));
+      const profile = await getProfile(data.token);
+
+      localStorage.setItem("user", JSON.stringify(profile));
+
+      // trigger update topbar
+      window.dispatchEvent(new Event("auth-change"));
 
       // =========================
-      // REDIRECT BERDASARKAN ROLE (SAFE)
+      // REDIRECT BY ROLE
       // =========================
-      switch (user.role) {
+      switch (profile.role) {
         case "Superadmin":
-          router.push("/superadmin");
+          router.push("/superadmin/dashboard");
           break;
 
         case "admin":
-          router.push("/admin");
+          router.push("/admin/dashboard");
           break;
 
         default:
           router.push("/user/beranda");
           break;
       }
-    } catch (error: any) {
-      setServerError(error.message || "Terjadi kesalahan koneksi");
+    } catch (error) {
+      setServerError("Server gagal terhubung");
     } finally {
       setLoading(false);
     }
@@ -104,7 +129,7 @@ const LoginPage = () => {
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center bg-white overflow-hidden font-sans">
 
-      {/* Background */}
+      {/* BACKGROUND (TIDAK DIUBAH) */}
       <div className="absolute inset-0 z-0 h-full w-full">
         <Image
           src="/image/bg logres.png"
@@ -115,7 +140,7 @@ const LoginPage = () => {
         />
       </div>
 
-      {/* Logo */}
+      {/* LOGO (TIDAK DIUBAH) */}
       <div className="absolute top-6 left-6 z-30">
         <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center p-1 overflow-hidden border border-gray-100">
           <img
@@ -126,13 +151,12 @@ const LoginPage = () => {
         </div>
       </div>
 
-      {/* Main Grid */}
+      {/* MAIN (TIDAK DIUBAH) */}
       <div className="relative z-10 w-full max-w-[1440px] min-h-screen grid grid-cols-1 lg:grid-cols-2">
 
         {/* LEFT */}
         <div className="relative flex flex-col justify-center items-center lg:items-end pr-0 lg:pr-20">
 
-          {/* Toggle */}
           <div className="flex flex-col gap-6 z-20 lg:translate-x-24">
 
             {/* MASUK */}
@@ -164,17 +188,19 @@ const LoginPage = () => {
                 Daftar
               </button>
             </Link>
+
           </div>
 
           {/* Pohon */}
-          <div className="absolute bottom-10 left-10 lg:left-20 w-[220px] h-[220px] lg:w-[360px] lg:h-[360px]">
-            <Image
-              src="/image/pohon.png"
-              alt="Pohon"
-              fill
-              className="object-contain"
-            />
-          </div>
+            <div className="absolute bottom-10 left-10 lg:left-20 w-[220px] h-[220px] lg:w-[360px] lg:h-[360px]">
+                    <Image
+                      src="/image/pohon.png"
+                      alt="Pohon"
+                      fill
+                      className="object-contain"
+                    />
+                  </div>
+
         </div>
 
         {/* RIGHT */}
@@ -183,8 +209,9 @@ const LoginPage = () => {
           {activeTab === "masuk" && (
             <div className="w-full max-w-[380px]">
 
-              {/* Icon */}
+              {/* ICON (TIDAK DIUBAH) */}
               <div className="flex flex-col items-center mb-8">
+
                 <div className="w-24 h-24 bg-white rounded-full flex items-center justify-center mb-3">
                   <svg
                     className="w-14 h-14 text-[#065F27]"
@@ -198,20 +225,25 @@ const LoginPage = () => {
                 <h1 className="text-white text-2xl font-bold uppercase tracking-widest">
                   Masuk
                 </h1>
+
               </div>
 
               {/* ERROR */}
               {serverError && (
-                <div className="mb-4 bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg text-sm">
+                <div className="mb-5 bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-xl text-sm font-medium animate-pulse">
                   {serverError}
                 </div>
               )}
 
               {/* FORM */}
-              <form onSubmit={handleSubmit} className="space-y-5 text-white">
+              <form
+                onSubmit={handleSubmit}
+                className="space-y-5 text-white"
+              >
 
                 {/* EMAIL */}
                 <div className="flex flex-col gap-1.5">
+
                   <label className="text-sm font-semibold tracking-wide">
                     Email
                   </label>
@@ -225,10 +257,12 @@ const LoginPage = () => {
                     className="w-full px-4 py-3.5 rounded-lg bg-[#033a18] bg-opacity-60 border border-[#0a4d24] focus:outline-none focus:ring-1 focus:ring-green-400 placeholder-gray-400 text-sm"
                     required
                   />
+
                 </div>
 
                 {/* PASSWORD */}
                 <div className="flex flex-col gap-1.5">
+
                   <label className="text-sm font-semibold tracking-wide">
                     Kata Sandi
                   </label>
@@ -242,10 +276,12 @@ const LoginPage = () => {
                     className="w-full px-4 py-3.5 rounded-lg bg-[#033a18] bg-opacity-60 border border-[#0a4d24] focus:outline-none focus:ring-1 focus:ring-green-400 placeholder-gray-400 text-sm"
                     required
                   />
+
                 </div>
 
                 {/* BUTTON */}
                 <div className="pt-2">
+
                   <button
                     type="submit"
                     disabled={loading}
@@ -253,13 +289,18 @@ const LoginPage = () => {
                   >
                     {loading ? "Memproses..." : "Masuk"}
                   </button>
+
                 </div>
+
               </form>
 
               {/* REGISTER */}
               <div className="mt-10 text-center text-white text-sm">
                 Tidak Punya Akun?{" "}
-                <Link href="/daftar" className="font-bold italic hover:underline ml-1">
+                <Link
+                  href="/daftar"
+                  className="font-bold italic hover:underline ml-1"
+                >
                   Daftar Disini
                 </Link>
               </div>

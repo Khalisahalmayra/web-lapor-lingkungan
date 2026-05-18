@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
 
 import {
   ArrowLeft,
@@ -14,25 +15,192 @@ import {
   MessageSquareText,
 } from "lucide-react";
 
+interface Laporan {
+  id: number;
+  judul_laporan: string;
+  isi_laporan: string;
+  gambar: string;
+  tanggal_kejadian: string;
+  lokasi_kejadian: string;
+  status: string;
+  alasan_penolakan: string | null;
+  pesan_admin: string | null;
+  category_name: string;
+  username: string;
+  created_at: string;
+}
+
 export default function DetailLaporanPage() {
-  const [status, setStatus] = useState("Pending");
+  const params = useParams();
 
-  const [adminMessage, setAdminMessage] = useState("");
+  // FIX ID
+  const id = Array.isArray(params.id)
+    ? params.id[0]
+    : params.id;
 
-  const [showRejectInput, setShowRejectInput] = useState(false);
+  const [status, setStatus] =
+    useState("Pending");
 
-  const [showFinishInput, setShowFinishInput] = useState(false);
+  const [adminMessage, setAdminMessage] =
+    useState("");
 
-  const laporan = {
-    id: "#ENV-2023-001",
-    kategori: "Pencemaran Sungai",
-    pelapor: "Budi Santoso",
-    tanggal: "12 Mei 2026",
-    lokasi: "Ciliwung, Jakarta",
-    deskripsi:
-      "Terjadi pencemaran sungai akibat limbah industri yang dibuang langsung ke aliran sungai. Air berubah warna dan menimbulkan bau menyengat.",
-    gambar:
-      "https://images.unsplash.com/photo-1583212292454-1fe6229603b7?q=80&w=1200&auto=format&fit=crop",
+  const [showRejectInput, setShowRejectInput] =
+    useState(false);
+
+  const [showFinishInput, setShowFinishInput] =
+    useState(false);
+
+  const [laporan, setLaporan] =
+    useState<Laporan | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
+
+  // ==========================
+  // GET DETAIL LAPORAN
+  // ==========================
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchDetailLaporan = async () => {
+      try {
+        setLoading(true);
+
+        const response = await fetch(
+          `http://localhost:5000/api/laporan/${id}`
+        );
+
+        const data = await response.json();
+
+        console.log("DATA :", data);
+
+        // ==========================
+        // FIX DATA ARRAY / OBJECT
+        // ==========================
+        const laporanData = Array.isArray(data)
+          ? data[0]
+          : data.data
+          ? data.data
+          : data;
+
+        if (!laporanData) {
+          setLoading(false);
+          return;
+        }
+
+        setLaporan(laporanData);
+
+        // ==========================
+        // STATUS FORMAT
+        // ==========================
+        if (
+          laporanData.status === "pending"
+        ) {
+          setStatus("Pending");
+        }
+
+        if (
+          laporanData.status === "diproses"
+        ) {
+          setStatus("Diproses");
+        }
+
+        if (
+          laporanData.status === "selesai"
+        ) {
+          setStatus("Selesai");
+        }
+
+        if (
+          laporanData.status === "ditolak"
+        ) {
+          setStatus("Ditolak");
+        }
+
+        // ==========================
+        // PESAN ADMIN
+        // ==========================
+        if (laporanData.pesan_admin) {
+          setAdminMessage(
+            laporanData.pesan_admin
+          );
+        }
+
+        if (
+          laporanData.alasan_penolakan
+        ) {
+          setAdminMessage(
+            laporanData.alasan_penolakan
+          );
+        }
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDetailLaporan();
+  }, [id]);
+
+  // ==========================
+  // UPDATE STATUS
+  // ==========================
+  const updateStatus = async (
+    newStatus: string
+  ) => {
+    try {
+      const token =
+        localStorage.getItem("token");
+
+      const response = await fetch(
+        `http://localhost:5000/api/laporan/${id}/status`,
+        {
+          method: "PUT",
+
+          headers: {
+            "Content-Type":
+              "application/json",
+
+            Authorization: `Bearer ${token}`,
+          },
+
+          body: JSON.stringify({
+            status:
+              newStatus.toLowerCase(),
+
+            pesan_admin:
+              newStatus === "Selesai"
+                ? adminMessage
+                : null,
+
+            alasan_penolakan:
+              newStatus === "Ditolak"
+                ? adminMessage
+                : null,
+          }),
+        }
+      );
+
+      const result =
+        await response.json();
+
+      console.log(result);
+
+      setStatus(newStatus);
+
+      setLaporan((prev) =>
+        prev
+          ? {
+              ...prev,
+              status:
+                newStatus.toLowerCase(),
+            }
+          : prev
+      );
+    } catch (error) {
+      console.log(error);
+    }
   };
 
   const getStatusStyle = () => {
@@ -53,6 +221,32 @@ export default function DetailLaporanPage() {
         return "bg-gray-100 text-gray-700";
     }
   };
+
+  // ==========================
+  // LOADING
+  // ==========================
+  if (loading) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <h1 className="text-xl font-semibold">
+          Loading...
+        </h1>
+      </main>
+    );
+  }
+
+  // ==========================
+  // DATA TIDAK ADA
+  // ==========================
+  if (!laporan) {
+    return (
+      <main className="min-h-screen flex items-center justify-center">
+        <h1 className="text-xl font-semibold text-red-500">
+          Data laporan tidak ditemukan
+        </h1>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#f4f5f7] p-8">
@@ -88,7 +282,7 @@ export default function DetailLaporanPage() {
                 </p>
 
                 <h1 className="text-4xl font-bold text-[#0B6B2B] mt-2">
-                  {laporan.id}
+                  #{laporan.id}
                 </h1>
               </div>
 
@@ -113,7 +307,7 @@ export default function DetailLaporanPage() {
                   </p>
 
                   <h3 className="font-semibold text-gray-800 text-lg mt-1">
-                    {laporan.kategori}
+                    {laporan.category_name}
                   </h3>
                 </div>
               </div>
@@ -130,7 +324,7 @@ export default function DetailLaporanPage() {
                   </p>
 
                   <h3 className="font-semibold text-gray-800 text-lg mt-1">
-                    {laporan.pelapor}
+                    {laporan.username}
                   </h3>
                 </div>
               </div>
@@ -147,7 +341,9 @@ export default function DetailLaporanPage() {
                   </p>
 
                   <h3 className="font-semibold text-gray-800 text-lg mt-1">
-                    {laporan.lokasi}
+                    {
+                      laporan.lokasi_kejadian
+                    }
                   </h3>
                 </div>
               </div>
@@ -164,7 +360,9 @@ export default function DetailLaporanPage() {
                   </p>
 
                   <h3 className="font-semibold text-gray-800 text-lg mt-1">
-                    {laporan.tanggal}
+                    {
+                      laporan.tanggal_kejadian
+                    }
                   </h3>
                 </div>
               </div>
@@ -177,7 +375,7 @@ export default function DetailLaporanPage() {
               </h2>
 
               <p className="text-gray-600 leading-relaxed mt-4 text-lg">
-                {laporan.deskripsi}
+                {laporan.isi_laporan}
               </p>
             </div>
 
@@ -232,7 +430,9 @@ export default function DetailLaporanPage() {
                   </h3>
 
                   <p className="text-sm text-gray-400">
-                    12 Mei 2026 - 08:12
+                    {new Date(
+                      laporan.created_at
+                    ).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -290,9 +490,17 @@ export default function DetailLaporanPage() {
               {/* PROSES */}
               <button
                 onClick={() => {
-                  setStatus("Diproses");
-                  setShowRejectInput(false);
-                  setShowFinishInput(false);
+                  updateStatus(
+                    "Diproses"
+                  );
+
+                  setShowRejectInput(
+                    false
+                  );
+
+                  setShowFinishInput(
+                    false
+                  );
                 }}
                 className="w-full bg-[#0B6B2B] hover:bg-[#095424] text-white py-3 rounded-2xl font-semibold transition"
               >
@@ -302,8 +510,13 @@ export default function DetailLaporanPage() {
               {/* SELESAI */}
               <button
                 onClick={() => {
-                  setShowFinishInput(true);
-                  setShowRejectInput(false);
+                  setShowFinishInput(
+                    true
+                  );
+
+                  setShowRejectInput(
+                    false
+                  );
                 }}
                 className="w-full bg-green-500 hover:bg-green-600 text-white py-3 rounded-2xl font-semibold transition"
               >
@@ -313,8 +526,13 @@ export default function DetailLaporanPage() {
               {/* TOLAK */}
               <button
                 onClick={() => {
-                  setShowRejectInput(true);
-                  setShowFinishInput(false);
+                  setShowRejectInput(
+                    true
+                  );
+
+                  setShowFinishInput(
+                    false
+                  );
                 }}
                 className="w-full bg-red-500 hover:bg-red-600 text-white py-3 rounded-2xl font-semibold transition"
               >
@@ -328,15 +546,22 @@ export default function DetailLaporanPage() {
                 <textarea
                   placeholder="Tulis pesan penyelesaian laporan..."
                   onChange={(e) =>
-                    setAdminMessage(e.target.value)
+                    setAdminMessage(
+                      e.target.value
+                    )
                   }
                   className="w-full border border-gray-300 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-green-500 min-h-[120px]"
                 />
 
                 <button
                   onClick={() => {
-                    setStatus("Selesai");
-                    setShowFinishInput(false);
+                    updateStatus(
+                      "Selesai"
+                    );
+
+                    setShowFinishInput(
+                      false
+                    );
                   }}
                   className="w-full mt-4 bg-green-500 hover:bg-green-600 text-white py-3 rounded-2xl font-semibold transition"
                 >
@@ -351,15 +576,22 @@ export default function DetailLaporanPage() {
                 <textarea
                   placeholder="Tulis alasan laporan ditolak..."
                   onChange={(e) =>
-                    setAdminMessage(e.target.value)
+                    setAdminMessage(
+                      e.target.value
+                    )
                   }
                   className="w-full border border-gray-300 rounded-2xl p-4 outline-none focus:ring-2 focus:ring-red-500 min-h-[120px]"
                 />
 
                 <button
                   onClick={() => {
-                    setStatus("Ditolak");
-                    setShowRejectInput(false);
+                    updateStatus(
+                      "Ditolak"
+                    );
+
+                    setShowRejectInput(
+                      false
+                    );
                   }}
                   className="w-full mt-4 bg-red-500 hover:bg-red-600 text-white py-3 rounded-2xl font-semibold transition"
                 >

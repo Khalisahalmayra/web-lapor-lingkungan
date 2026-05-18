@@ -5,11 +5,14 @@ const db = require("../config/db");
 // =========================
 const createKomentar = async (req, res) => {
   try {
+
     const {
       isi_komentar,
-      user_id,
       laporan_id,
     } = req.body;
+
+    // user dari token
+    const user_id = req.user.id;
 
     const query = `
       INSERT INTO komentar
@@ -35,9 +38,12 @@ const createKomentar = async (req, res) => {
 
     res.status(201).json({
       success: true,
+      message: "Komentar berhasil dibuat",
       data: result.rows[0],
     });
+
   } catch (error) {
+
     console.log(error);
 
     res.status(500).json({
@@ -55,28 +61,37 @@ const getKomentarByLaporan = async (
   res
 ) => {
   try {
-    const { laporan_id } = req.params;
+
+    // HARUS id
+    const { id } = req.params;
 
     const query = `
       SELECT
         komentar.*,
-        users.username
+        users.username,
+        users.profile
       FROM komentar
+
       JOIN users
-        ON users.id = komentar.user_id
-      WHERE laporan_id = $1
+      ON users.id = komentar.user_id
+
+      WHERE komentar.laporan_id = $1
+
       ORDER BY komentar.created_at DESC
     `;
 
-    const result = await db.query(query, [
-      laporan_id,
-    ]);
+    const result = await db.query(
+      query,
+      [id]
+    );
 
     res.status(200).json({
       success: true,
       data: result.rows,
     });
+
   } catch (error) {
+
     console.log(error);
 
     res.status(500).json({

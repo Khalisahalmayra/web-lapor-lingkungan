@@ -59,43 +59,23 @@ const getDetailLaporan = async (req, res) => {
       SELECT
         laporan_masyarakat.*,
         kategori.category_name,
-        users.username,
-
-        COUNT(DISTINCT suka.id)::INT AS total_like,
-        COUNT(DISTINCT komentar.id)::INT AS total_komen
-
-      FROM laporan_masyarakat
-
-      JOIN kategori
-      ON laporan_masyarakat.kategori_id = kategori.id
-
-      JOIN users
-      ON laporan_masyarakat.user_id = users.id
-
-      LEFT JOIN suka
-      ON laporan_masyarakat.id = suka.laporan_id
-
-      LEFT JOIN komentar
-      ON laporan_masyarakat.id = komentar.laporan_id
-
-      WHERE laporan_masyarakat.id = $1
-
-      GROUP BY
-        laporan_masyarakat.id,
-        kategori.category_name,
         users.username
+      FROM laporan_masyarakat
+      JOIN kategori ON laporan_masyarakat.kategori_id = kategori.id
+      JOIN users ON laporan_masyarakat.user_id = users.id
+      WHERE laporan_masyarakat.id = $1
       `,
-      [id]
+      [Number(id)]
     );
 
-    res.json(result.rows[0]);
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: "Data tidak ditemukan" });
+    }
 
+    res.json(result.rows[0]);
   } catch (error) {
     console.log(error);
-
-    res.status(500).json({
-      message: "Server Error",
-    });
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
@@ -327,6 +307,79 @@ const likeLaporan = async (req, res) => {
   }
 };
 
+// ==========================
+// UPDATE STATUS LAPORAN
+// ==========================
+const updateStatusLaporan = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      status,
+      pesan_admin,
+      alasan_penolakan,
+    } = req.body;
+
+    // ==========================
+    // VALIDASI STATUS
+    // ==========================
+    const allowedStatus = [
+      "pending",
+      "diproses",
+      "selesai",
+      "ditolak",
+    ];
+
+    if (!allowedStatus.includes(status)) {
+      return res.status(400).json({
+        message: "Status tidak valid",
+      });
+    }
+
+    // ==========================
+    // UPDATE DATABASE
+    // ==========================
+    const result = await pool.query(
+      `
+      UPDATE laporan_masyarakat
+      SET
+        status = $1,
+        pesan_admin = $2,
+        alasan_penolakan = $3
+
+      WHERE id = $4
+
+      RETURNING *
+      `,
+      [
+        status,
+        pesan_admin || null,
+        alasan_penolakan || null,
+        id,
+      ]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Laporan tidak ditemukan",
+      });
+    }
+
+    res.json({
+      message:
+        "Status laporan berhasil diupdate",
+      data: result.rows[0],
+    });
+
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      message: "Server Error",
+    });
+  }
+};
+
 module.exports = {
   getLaporan,
   getDetailLaporan,
@@ -334,4 +387,5 @@ module.exports = {
   getLaporanFeed,
   getRiwayatUser,
   likeLaporan,
+  updateStatusLaporan,
 };

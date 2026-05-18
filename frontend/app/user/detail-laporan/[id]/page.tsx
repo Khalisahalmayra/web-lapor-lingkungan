@@ -26,6 +26,16 @@ export default function DetailLaporanPage() {
   const [isiKomentar, setIsiKomentar] = useState("");
   const [loadingLike, setLoadingLike] = useState(false);
 
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<
+    "success" | "error" | ""
+  >("");
+
+  const user =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("user") || "{}")
+      : {};
+
   // =====================================
   // GET DETAIL LAPORAN
   // =====================================
@@ -43,14 +53,17 @@ export default function DetailLaporanPage() {
         fetch("http://localhost:5000/api/laporan")
           .then((res) => res.json())
           .then((laporanData) => {
-            const semuaLaporan = Array.isArray(laporanData)
+            const semuaLaporan = Array.isArray(
+              laporanData
+            )
               ? laporanData
               : laporanData.data || [];
 
             const filtered = semuaLaporan.filter(
               (item: any) =>
                 item.id !== detail.id &&
-                item.category_name === detail.category_name
+                item.category_name ===
+                  detail.category_name
             );
 
             setLaporanSerupa(filtered.slice(0, 4));
@@ -62,22 +75,44 @@ export default function DetailLaporanPage() {
   // =====================================
   // GET KOMENTAR
   // =====================================
+  const fetchKomentar = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:5000/api/komentar/laporan/${id}`
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        setKomentar(data.data || []);
+      } else {
+        setKomentar([]);
+      }
+    } catch (error) {
+      console.log(error);
+      setKomentar([]);
+    }
+  };
+
   useEffect(() => {
     if (!id) return;
 
-    fetch(`http://localhost:5000/api/komentar/laporan/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setKomentar(data);
-        } else if (Array.isArray(data.data)) {
-          setKomentar(data.data);
-        } else {
-          setKomentar([]);
-        }
-      })
-      .catch(console.log);
+    fetchKomentar();
   }, [id]);
+
+  // =====================================
+  // AUTO HILANGKAN MESSAGE
+  // =====================================
+  useEffect(() => {
+    if (!message) return;
+
+    const timer = setTimeout(() => {
+      setMessage("");
+      setMessageType("");
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, [message]);
 
   // =====================================
   // LOADING
@@ -112,7 +147,8 @@ export default function DetailLaporanPage() {
           window.location.href
         );
 
-        alert("Link berhasil disalin");
+        setMessage("Link berhasil disalin");
+        setMessageType("success");
       }
     } catch (error) {
       console.log(error);
@@ -120,7 +156,7 @@ export default function DetailLaporanPage() {
   };
 
   // =====================================
-  // LIKE / DUKUNG
+  // LIKE
   // =====================================
   const handleLike = async () => {
     try {
@@ -129,7 +165,10 @@ export default function DetailLaporanPage() {
       const token = localStorage.getItem("token");
 
       if (!token) {
-        alert("Silahkan login terlebih dahulu");
+        setMessage(
+          "Silahkan login terlebih dahulu"
+        );
+        setMessageType("error");
         return;
       }
 
@@ -141,9 +180,6 @@ export default function DetailLaporanPage() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            laporan_id: id,
-          }),
         }
       );
 
@@ -157,13 +193,17 @@ export default function DetailLaporanPage() {
             : (prev.total_like || 0) - 1,
         }));
 
-        alert(data.message);
+        setMessage(data.message);
+        setMessageType("success");
       } else {
-        alert(data.message);
+        setMessage(data.message);
+        setMessageType("error");
       }
     } catch (error) {
       console.log(error);
-      alert("Terjadi kesalahan");
+
+      setMessage("Terjadi kesalahan");
+      setMessageType("error");
     } finally {
       setLoadingLike(false);
     }
@@ -174,16 +214,27 @@ export default function DetailLaporanPage() {
   // =====================================
   const handleKirimKomentar = async () => {
     if (!isiKomentar.trim()) {
-      alert("Komentar tidak boleh kosong");
+      setMessage(
+        "Komentar tidak boleh kosong"
+      );
+
+      setMessageType("error");
+
       return;
     }
 
     try {
       const token = localStorage.getItem("token");
 
-      const user = JSON.parse(
-        localStorage.getItem("user") || "{}"
-      );
+      if (!token) {
+        setMessage(
+          "Silahkan login terlebih dahulu"
+        );
+
+        setMessageType("error");
+
+        return;
+      }
 
       const response = await fetch(
         "http://localhost:5000/api/komentar",
@@ -203,25 +254,40 @@ export default function DetailLaporanPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setKomentar((prev) => [
-          {
-            isi_komentar: isiKomentar,
-            username: user.username || "User",
-            foto_profile: user.foto_profile || null,
-            created_at: new Date(),
-          },
+
+        // refresh komentar dari database
+        await fetchKomentar();
+
+        // update total komentar
+        setLaporan((prev: any) => ({
           ...prev,
-        ]);
+          total_komen:
+            (prev.total_komen || 0) + 1,
+        }));
 
         setIsiKomentar("");
 
-        alert("Komentar berhasil dikirim");
+        setMessage(
+          "Komentar berhasil dikirim"
+        );
+
+        setMessageType("success");
+
       } else {
-        alert(data.message || "Gagal mengirim komentar");
+
+        setMessage(
+          data.message ||
+            "Gagal mengirim komentar"
+        );
+
+        setMessageType("error");
       }
     } catch (error) {
       console.log(error);
-      alert("Terjadi kesalahan");
+
+      setMessage("Terjadi kesalahan server");
+
+      setMessageType("error");
     }
   };
 
@@ -261,9 +327,9 @@ export default function DetailLaporanPage() {
               {/* USER */}
               <div className="mt-6 border rounded-2xl p-4 flex items-center gap-4">
 
-                {laporan.foto_profile ? (
+                {laporan.profile ? (
                   <Image
-                    src={laporan.foto_profile}
+                    src={laporan.profile}
                     alt="Profile"
                     width={56}
                     height={56}
@@ -295,7 +361,10 @@ export default function DetailLaporanPage() {
             <div className="relative mt-6 w-full h-[500px] rounded-2xl overflow-hidden">
 
               <Image
-                src={laporan.gambar || "/image/laporan.png"}
+                src={
+                  laporan.gambar ||
+                  "/image/laporan.png"
+                }
                 alt="Laporan"
                 fill
                 unoptimized
@@ -330,7 +399,7 @@ export default function DetailLaporanPage() {
               {/* BUTTON */}
               <div className="flex gap-5 mt-8 flex-wrap">
 
-                {/* DUKUNG */}
+                {/* LIKE */}
                 <button
                   onClick={handleLike}
                   disabled={loadingLike}
@@ -338,7 +407,8 @@ export default function DetailLaporanPage() {
                 >
                   <ThumbsUp className="w-5 h-5" />
 
-                  Dukung ({laporan.total_like || 0})
+                  Dukung (
+                  {laporan.total_like || 0})
                 </button>
 
                 {/* SHARE */}
@@ -357,25 +427,55 @@ export default function DetailLaporanPage() {
             {/* KOMENTAR */}
             <div className="mt-10 bg-white rounded-2xl p-6 border">
 
-              <h2 className="text-3xl font-bold">
-                Komentar
-              </h2>
+              <div className="flex items-center justify-between flex-wrap gap-4">
 
-              {/* INPUT KOMENTAR */}
+                <h2 className="text-3xl font-bold">
+                  Komentar (
+                  {laporan.total_komen || 0})
+                </h2>
+
+              </div>
+
+              {/* MESSAGE */}
+              {message && (
+                <div
+                  className={`mt-4 px-4 py-3 rounded-xl text-sm font-medium ${
+                    messageType === "success"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-700"
+                  }`}
+                >
+                  {message}
+                </div>
+              )}
+
+              {/* INPUT */}
               <div className="flex gap-5 mt-8">
 
-                <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
-                  {JSON.parse(
-                    localStorage.getItem("user") || "{}"
-                  )?.username?.charAt(0) || "U"}
-                </div>
+                {user?.profile ? (
+                  <Image
+                    src={user.profile}
+                    alt="Profile"
+                    width={56}
+                    height={56}
+                    className="rounded-full object-cover w-14 h-14"
+                    unoptimized
+                  />
+                ) : (
+                  <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
+                    {user?.username?.charAt(0) ||
+                      "U"}
+                  </div>
+                )}
 
                 <div className="flex-1">
 
                   <textarea
                     value={isiKomentar}
                     onChange={(e) =>
-                      setIsiKomentar(e.target.value)
+                      setIsiKomentar(
+                        e.target.value
+                      )
                     }
                     className="w-full h-[120px] border rounded-2xl p-5"
                     placeholder="Tulis komentar..."
@@ -384,10 +484,13 @@ export default function DetailLaporanPage() {
                   <div className="flex justify-end mt-4">
 
                     <button
-                      onClick={handleKirimKomentar}
+                      onClick={
+                        handleKirimKomentar
+                      }
                       className="px-10 py-3 rounded-xl bg-[#005F18] text-white flex items-center gap-2"
                     >
                       <Send className="w-5 h-5" />
+
                       Kirim
                     </button>
 
@@ -396,24 +499,23 @@ export default function DetailLaporanPage() {
                 </div>
               </div>
 
-              {/* DATA KOSONG */}
+              {/* EMPTY */}
               {komentar.length === 0 && (
                 <p className="text-center mt-8 text-gray-500">
                   Belum ada komentar
                 </p>
               )}
 
-              {/* LIST KOMENTAR */}
+              {/* LIST */}
               {komentar.map((item, index) => (
                 <div
                   key={index}
                   className="flex gap-5 mt-8"
                 >
 
-                  {/* FOTO PROFILE */}
-                  {item.foto_profile ? (
+                  {item.profile ? (
                     <Image
-                      src={item.foto_profile}
+                      src={item.profile}
                       alt="Profile"
                       width={56}
                       height={56}
@@ -422,11 +524,12 @@ export default function DetailLaporanPage() {
                     />
                   ) : (
                     <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
-                      {item.username?.charAt(0) || "U"}
+                      {item.username?.charAt(
+                        0
+                      ) || "U"}
                     </div>
                   )}
 
-                  {/* ISI */}
                   <div className="flex-1 border rounded-2xl p-5 bg-[#FAFAFA]">
 
                     <div className="flex items-center justify-between flex-wrap gap-2">
@@ -438,7 +541,9 @@ export default function DetailLaporanPage() {
                       <p className="text-sm text-gray-500">
                         {new Date(
                           item.created_at
-                        ).toLocaleDateString("id-ID")}
+                        ).toLocaleDateString(
+                          "id-ID"
+                        )}
                       </p>
 
                     </div>
@@ -510,7 +615,8 @@ export default function DetailLaporanPage() {
               </h2>
 
               <p className="mt-3">
-                Hubungi layanan darurat lingkungan hidup.
+                Hubungi layanan darurat
+                lingkungan hidup.
               </p>
 
               <button className="mt-6 w-full bg-white text-black py-3 rounded-xl flex items-center justify-center gap-2">

@@ -7,6 +7,7 @@ const {
   createLaporan,
   getLaporanFeed,
   getRiwayatUser,
+  updateStatusLaporan,
 } = require("../controller/laporanController");
 
 const {
@@ -47,6 +48,15 @@ router.post(
 router.get(
   "/:id",
   getDetailLaporan
+);
+
+// ==========================
+// UPDATE STATUS ADMIN
+// ==========================
+router.put(
+  "/:id/status",
+  authMiddleware,
+  updateStatusLaporan
 );
 
 // ==========================

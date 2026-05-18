@@ -6,13 +6,19 @@ const {
   getKomentarByLaporan,
 } = require("../controller/komentarController");
 
-// TAMBAH KOMENTAR
-router.post("/", createKomentar);
+const authMiddleware = require("../middleware/authMiddleware");
 
-// GET KOMENTAR BERDASARKAN LAPORAN
+// GET KOMENTAR
 router.get(
-  "/laporan/:laporan_id",
+  "/laporan/:id",
   getKomentarByLaporan
+);
+
+// CREATE KOMENTAR
+router.post(
+  "/",
+  authMiddleware,
+  createKomentar
 );
 
 module.exports = router;

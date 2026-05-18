@@ -216,32 +216,7 @@ export default function RiwayatPage() {
                 return (
                   <div
                     key={item.id}
-                    className={`rounded-2xl p-6 mb-8 border-[4px]
-                    
-                    ${
-                      status === "pending"
-                        ? "bg-[#006414] border-[#1ea7ff]"
-                        : ""
-                    }
-
-                    ${
-                      status === "diproses"
-                        ? "bg-[#a85a00] border-orange-300"
-                        : ""
-                    }
-
-                    ${
-                      status === "selesai"
-                        ? "bg-[#0d7a2f] border-green-300"
-                        : ""
-                    }
-
-                    ${
-                      status === "ditolak"
-                        ? "bg-[#8b0000] border-red-300"
-                        : ""
-                    }
-                  `}
+                    className="rounded-2xl p-6 mb-8 border-[4px] bg-[#006414] border-[#1ea7ff]"
                   >
 
                     {/* STATUS */}
@@ -421,7 +396,7 @@ export default function RiwayatPage() {
                     {/* PESAN ADMIN */}
                     {status === "selesai" &&
                       item.pesan_admin && (
-                        <div className="mt-5 bg-white/10 border border-green-300 rounded-xl p-5 text-white">
+                        <div className="mt-5 bg-white/10 border border-green-500 rounded-xl p-5 text-white">
 
                           <div className="flex items-center gap-2 mb-2">
 
@@ -443,7 +418,7 @@ export default function RiwayatPage() {
                     {/* ALASAN PENOLAKAN */}
                     {status === "ditolak" &&
                       item.alasan_penolakan && (
-                        <div className="mt-5 bg-white/10 border border-red-300 rounded-xl p-5 text-white">
+                        <div className="mt-5 bg-white/10 border border-red-500 rounded-xl p-5 text-white">
 
                           <div className="flex items-center gap-2 mb-2">
 

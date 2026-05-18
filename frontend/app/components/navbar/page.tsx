@@ -360,7 +360,7 @@ export default function Navbar() {
 
     localStorage.removeItem("user");
 
-    router.push("/login");
+    router.push("/masuk");
   };
 
   return (

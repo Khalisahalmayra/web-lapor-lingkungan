@@ -1,39 +1,78 @@
 "use client";
 
-import { useRef, useState } from "react";
-
+import { useEffect, useRef, useState } from "react";
 import {
   Bell,
   ChevronDown,
   Clock3,
   LogOut,
-  Moon,
   Pencil,
   Search,
   Settings,
   User,
   X,
+  Upload,
 } from "lucide-react";
 
 export default function TopbarAdmin() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [openProfile, setOpenProfile] = useState(false);
-
   const [openEditModal, setOpenEditModal] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState("");
 
   const [profileData, setProfileData] = useState({
-    username: "Admin Super",
-    email: "admin@gmail.com",
-    password: "12345678",
-    role: "Pusat Kendali Global",
-    photo: "https://i.pravatar.cc/200?img=32",
+    username: "",
+    email: "",
+    password: "",
+    role: "",
+    profile: "",
   });
 
-  // UPDATE FOTO
-  const handlePhotoChange = (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  // =========================
+  // GET PROFILE
+  // =========================
+  useEffect(() => {
+    const getProfile = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (!token) return;
+
+        const response = await fetch(
+          "http://localhost:5000/api/auth/profile",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await response.json();
+
+        if (response.ok) {
+          setProfileData({
+            username: data.username || "",
+            email: data.email || "",
+            password: "",
+            role: data.role || "",
+            profile: data.profile || "",
+          });
+
+          localStorage.setItem("user", JSON.stringify(data));
+        }
+      } catch (error) {
+        console.log(error);
+      }
+    };
+
+    getProfile();
+  }, []);
+
+  // =========================
+  // UPLOAD FOTO
+  // =========================
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
 
     if (file) {
@@ -41,320 +80,244 @@ export default function TopbarAdmin() {
 
       setProfileData({
         ...profileData,
-        photo: imageUrl,
+        profile: imageUrl,
       });
     }
+  };
+
+  // =========================
+  // UPDATE PROFILE
+  // =========================
+  const handleUpdateProfile = async () => {
+    try {
+      setLoading(true);
+
+      const token = localStorage.getItem("token");
+
+      const response = await fetch(
+        "http://localhost:5000/api/auth/update-profile",
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: profileData.username,
+            email: profileData.email,
+            password: profileData.password,
+            profile: profileData.profile,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setMessage("Profile berhasil diupdate");
+
+        localStorage.setItem("user", JSON.stringify(data.user));
+
+        setOpenEditModal(false);
+      } else {
+        setMessage(data.message || "Gagal update profile");
+      }
+    } catch (error) {
+      console.log(error);
+      setMessage("Terjadi kesalahan server");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // =========================
+  // LOGOUT
+  // =========================
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    window.location.href = "/masuk";
   };
 
   return (
     <>
       {/* TOPBAR */}
       <div className="w-full bg-white px-6 py-4 flex items-center justify-between border-b border-gray-200">
+
         {/* SEARCH */}
         <div className="relative w-[42%]">
-          <Search
-            className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"
-            size={22}
-          />
-
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
           <input
-            type="text"
-            placeholder="Cari laporan, admin, atau kategori..."
-            className="w-full bg-[#F3F4F8] border border-gray-200 rounded-[20px] py-4 pl-14 pr-4 text-[15px] text-gray-700 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
+            placeholder="Cari..."
+            className="w-full bg-[#F3F4F8] rounded-[20px] py-4 pl-14 pr-4"
           />
         </div>
 
         {/* RIGHT */}
         <div className="flex items-center gap-6">
-          {/* ICON */}
-          <div className="flex items-center gap-5 text-gray-600">
-            {/* BELL */}
-            <div className="relative cursor-pointer">
-              <Bell size={24} strokeWidth={2} />
 
-              <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border border-white" />
-            </div>
-
-            {/* CLOCK */}
-            <Clock3
-              size={24}
-              strokeWidth={2}
-              className="cursor-pointer"
-            />
-
-            {/* DARK MODE */}
-            <Moon
-              size={24}
-              strokeWidth={2}
-              className="cursor-pointer"
-            />
-          </div>
-
-          {/* LINE */}
-          <div className="w-[1px] h-12 bg-gray-300" />
+          <Bell />
+          <Clock3 />
+          <div className="w-[1px] h-10 bg-gray-300" />
 
           {/* PROFILE */}
           <div className="relative">
+
             <div
-              onClick={() =>
-                setOpenProfile(!openProfile)
-              }
+              onClick={() => setOpenProfile(!openProfile)}
               className="flex items-center gap-3 cursor-pointer"
             >
-              {/* TEXT */}
-              <div className="text-right">
-                <h2 className="text-[18px] font-bold text-black leading-none">
-                  {profileData.username}
-                </h2>
 
-                <p className="text-[13px] text-gray-500 mt-1">
+              <div className="text-right">
+                <h2 className="font-bold">
+                  {profileData.username || "Loading..."}
+                </h2>
+                <p className="text-sm text-gray-500 capitalize">
                   {profileData.role}
                 </p>
               </div>
 
-              {/* IMAGE */}
-              <img
-                src={profileData.photo}
-                alt="profile"
-                className="w-14 h-14 rounded-full object-cover border-[3px] border-[#0B6B2B]"
-              />
+              {profileData.profile ? (
+                <img
+                  src={profileData.profile}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+              ) : (
+                <User />
+              )}
 
-              {/* ICON */}
-              <ChevronDown
-                size={22}
-                className={`text-gray-500 transition ${
-                  openProfile
-                    ? "rotate-180"
-                    : ""
-                }`}
-              />
+              <ChevronDown />
             </div>
 
             {/* DROPDOWN */}
             {openProfile && (
-              <div className="absolute right-0 top-20 w-[320px] bg-white rounded-[24px] shadow-2xl border border-gray-100 overflow-hidden z-50">
-                {/* HEADER */}
-                <div className="p-5 border-b border-gray-100">
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={profileData.photo}
-                      alt="profile"
-                      className="w-16 h-16 rounded-full object-cover border-2 border-[#0B6B2B]"
-                    />
+              <div className="absolute right-0 top-16 w-72 bg-white shadow-xl rounded-2xl p-3 z-50">
 
-                    <div>
-                      <h2 className="text-[18px] font-bold text-gray-800">
-                        {profileData.username}
-                      </h2>
+                {/* EDIT BUTTON */}
+                <button
+                  onClick={() => {
+                    setOpenEditModal(true);
+                    setOpenProfile(false);
+                  }}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 rounded-xl"
+                >
+                  <Pencil size={18} />
+                  Edit Profile
+                </button>
 
-                      <p className="text-sm text-gray-500 mt-1">
-                        {profileData.email}
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                {/* SETTINGS */}
+                <button className="w-full flex items-center gap-3 p-3 hover:bg-gray-100 rounded-xl">
+                  <Settings size={18} />
+                  Settings
+                </button>
 
-                {/* MENU */}
-                <div className="p-3 space-y-2">
-                  {/* EDIT */}
-                  <button
-                    onClick={() => {
-                      setOpenEditModal(true);
-                      setOpenProfile(false);
-                    }}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-green-50 transition"
-                  >
-                    <div className="bg-green-100 p-2 rounded-xl">
-                      <Pencil
-                        size={18}
-                        className="text-[#0B6B2B]"
-                      />
-                    </div>
+                {/* LOGOUT */}
+                <button
+                  onClick={handleLogout}
+                  className="w-full flex items-center gap-3 p-3 hover:bg-red-100 text-red-600 rounded-xl"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
 
-                    <div className="text-left">
-                      <h3 className="font-semibold text-gray-800 text-sm">
-                        Edit Profile
-                      </h3>
-
-                      <p className="text-xs text-gray-500">
-                        Ubah data akun admin
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* SETTINGS */}
-                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-gray-100 transition">
-                    <div className="bg-gray-100 p-2 rounded-xl">
-                      <Settings
-                        size={18}
-                        className="text-gray-700"
-                      />
-                    </div>
-
-                    <div className="text-left">
-                      <h3 className="font-semibold text-gray-800 text-sm">
-                        Pengaturan
-                      </h3>
-
-                      <p className="text-xs text-gray-500">
-                        Kelola akun
-                      </p>
-                    </div>
-                  </button>
-
-                  {/* LOGOUT */}
-                  <button className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl hover:bg-red-50 transition">
-                    <div className="bg-red-100 p-2 rounded-xl">
-                      <LogOut
-                        size={18}
-                        className="text-red-600"
-                      />
-                    </div>
-
-                    <div className="text-left">
-                      <h3 className="font-semibold text-red-600 text-sm">
-                        Logout
-                      </h3>
-
-                      <p className="text-xs text-red-400">
-                        Keluar akun
-                      </p>
-                    </div>
-                  </button>
-                </div>
               </div>
             )}
+
           </div>
         </div>
       </div>
 
-      {/* MODAL EDIT PROFILE */}
+      {/* MODAL EDIT */}
       {openEditModal && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100] px-4">
-          <div className="bg-white w-full max-w-xl rounded-[28px] p-7 relative">
-            {/* CLOSE */}
-            <button
-              onClick={() =>
-                setOpenEditModal(false)
-              }
-              className="absolute top-5 right-5 text-gray-500 hover:text-black"
-            >
-              <X size={24} />
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center">
+
+          <div className="bg-white w-[420px] rounded-2xl p-6">
+
+            <button onClick={() => setOpenEditModal(false)}>
+              <X />
             </button>
 
-            {/* HEADER */}
-            <div className="flex items-center gap-3 mb-8">
-              <div className="bg-green-100 p-3 rounded-2xl">
-                <User className="text-[#0B6B2B]" />
-              </div>
-
-              <div>
-                <h2 className="text-2xl font-bold text-[#0B6B2B]">
-                  Edit Profile
-                </h2>
-
-                <p className="text-gray-500 mt-1 text-sm">
-                  Update informasi akun admin
-                </p>
-              </div>
-            </div>
-
             {/* FOTO */}
-            <div className="flex flex-col items-center mb-7">
-              <img
-                src={profileData.photo}
-                alt="profile"
-                className="w-24 h-24 rounded-full object-cover border-4 border-[#0B6B2B]"
-              />
+            <div className="flex flex-col items-center mb-4">
+
+              {profileData.profile ? (
+                <img
+                  src={profileData.profile}
+                  className="w-20 h-20 rounded-full"
+                />
+              ) : (
+                <User size={40} />
+              )}
 
               <button
-                onClick={() =>
-                  fileInputRef.current?.click()
-                }
-                className="mt-4 bg-[#0B6B2B] hover:bg-[#095424] text-white px-5 py-2.5 rounded-xl font-medium transition text-sm"
+                onClick={() => fileInputRef.current?.click()}
+                className="mt-3 flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg"
               >
-                Update Foto Profile
+                <Upload size={16} />
+                Upload Foto
               </button>
 
               <input
                 type="file"
-                accept="image/*"
                 ref={fileInputRef}
                 onChange={handlePhotoChange}
                 className="hidden"
               />
             </div>
 
-            {/* FORM */}
-            <div className="space-y-5">
-              {/* USERNAME */}
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Nama Pengguna
-                </label>
+            {/* INPUT */}
+            <input
+              placeholder="Username"
+              value={profileData.username}
+              onChange={(e) =>
+                setProfileData({
+                  ...profileData,
+                  username: e.target.value,
+                })
+              }
+              className="w-full border p-2 rounded mt-2"
+            />
 
-                <input
-                  type="text"
-                  value={profileData.username}
-                  onChange={(e) =>
-                    setProfileData({
-                      ...profileData,
-                      username: e.target.value,
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-2xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
-                />
-              </div>
+            <input
+              placeholder="Email"
+              value={profileData.email}
+              onChange={(e) =>
+                setProfileData({
+                  ...profileData,
+                  email: e.target.value,
+                })
+              }
+              className="w-full border p-2 rounded mt-2"
+            />
 
-              {/* EMAIL */}
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Email
-                </label>
+            <input
+              type="password"
+              placeholder="Password baru (opsional)"
+              value={profileData.password}
+              onChange={(e) =>
+                setProfileData({
+                  ...profileData,
+                  password: e.target.value,
+                })
+              }
+              className="w-full border p-2 rounded mt-2"
+            />
 
-                <input
-                  type="email"
-                  value={profileData.email}
-                  onChange={(e) =>
-                    setProfileData({
-                      ...profileData,
-                      email: e.target.value,
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-2xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
-                />
-              </div>
+            <button
+              onClick={handleUpdateProfile}
+              className="w-full bg-green-600 text-white p-3 rounded mt-4"
+            >
+              {loading ? "Loading..." : "Simpan"}
+            </button>
 
-              {/* PASSWORD */}
-              <div>
-                <label className="text-sm font-semibold text-gray-600">
-                  Password
-                </label>
+            {message && (
+              <p className="text-center text-sm mt-2 text-green-600">
+                {message}
+              </p>
+            )}
 
-                <input
-                  type="password"
-                  value={profileData.password}
-                  onChange={(e) =>
-                    setProfileData({
-                      ...profileData,
-                      password: e.target.value,
-                    })
-                  }
-                  className="w-full border border-gray-300 rounded-2xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
-                />
-              </div>
-
-              {/* BUTTON */}
-              <button
-                onClick={() =>
-                  setOpenEditModal(false)
-                }
-                className="w-full bg-[#0B6B2B] hover:bg-[#095424] text-white py-4 rounded-2xl font-semibold transition mt-2"
-              >
-                Simpan Perubahan
-              </button>
-            </div>
           </div>
+
         </div>
       )}
     </>
