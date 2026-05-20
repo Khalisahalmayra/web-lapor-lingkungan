@@ -11,7 +11,7 @@ import {
   Pencil,
   Search,
   Settings,
-  User,
+  User, 
   X,
 } from "lucide-react";
 
@@ -207,16 +207,38 @@ export default function TopbarAdmin() {
     }
   };
 
+  const handleLogout = () => {
+  localStorage.clear()
+  window.location.href = "/masuk";
+};
+
   // =====================================
   // LOGOUT
   // =====================================
-  const handleLogout = () => {
-    localStorage.removeItem("token");
+  async function apiFetch(url: string, options?: RequestInit) {
+  const token = localStorage.getItem("token");
 
-    localStorage.removeItem("user");
+  const res = await fetch(url, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
 
-    window.location.href = "/login";
-  };
+  const data = await res.json();
+
+  if (!res.ok) {
+    if (data.message === "Token expired, silakan login ulang") {
+      localStorage.removeItem("token");
+      window.location.href = "/masuk";
+    }
+
+    throw new Error(data.message || `HTTP ${res.status}`);
+  }
+
+  return data;
+}
 
   return (
     <>

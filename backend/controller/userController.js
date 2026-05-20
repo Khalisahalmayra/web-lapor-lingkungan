@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 
 // ============================
-// GET ALL USERS (SUPERADMIN)
+// GET ALL ADMIN (SUPERADMIN)
 // ============================
 const getAllUsers = async (req, res) => {
   try {
@@ -14,6 +14,7 @@ const getAllUsers = async (req, res) => {
         profile,
         created_at
       FROM users
+      WHERE role = 'admin'
       ORDER BY id DESC
     `);
 
@@ -47,6 +48,36 @@ const getUserById = async (req, res) => {
     }
 
     res.json(result.rows[0]);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+const bcrypt = require("bcryptjs");
+
+// ============================
+// CREATE USER (SUPERADMIN)
+// ============================
+const createUser = async (req, res) => {
+  try {
+    const { username, email, password, role } = req.body;
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const result = await pool.query(
+      `
+      INSERT INTO users (username, email, password, role)
+      VALUES ($1, $2, $3, $4)
+      RETURNING id, username, email, role, profile, created_at
+      `,
+      [username, email, hashedPassword, role || "admin"]
+    );
+
+    res.status(201).json({
+      message: "User berhasil dibuat",
+      data: result.rows[0],
+    });
   } catch (error) {
     console.log(error);
     res.status(500).json({ message: "Server Error" });
@@ -134,4 +165,5 @@ module.exports = {
   getUserById,
   updateUser,
   deleteUser,
+  createUser,
 };

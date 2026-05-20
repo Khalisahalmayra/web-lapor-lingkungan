@@ -101,7 +101,58 @@ const getKomentarByLaporan = async (
   }
 };
 
+// =========================
+// DELETE KOMENTAR (HANYA PEMILIK)
+// =========================
+const deleteKomentar = async (req, res) => {
+  try {
+    const { id } = req.params; // id komentar
+    const user_id = req.user.id;
+
+    // cek apakah komentar milik user
+    const checkQuery = `
+      SELECT * FROM komentar WHERE id = $1
+    `;
+
+    const checkResult = await db.query(checkQuery, [id]);
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Komentar tidak ditemukan",
+      });
+    }
+
+    const komentar = checkResult.rows[0];
+
+    if (komentar.user_id !== user_id) {
+      return res.status(403).json({
+        success: false,
+        message: "Tidak bisa menghapus komentar orang lain",
+      });
+    }
+
+    // delete
+    await db.query(`DELETE FROM komentar WHERE id = $1`, [
+      id,
+    ]);
+
+    res.status(200).json({
+      success: true,
+      message: "Komentar berhasil dihapus",
+    });
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Gagal menghapus komentar",
+    });
+  }
+};
+
 module.exports = {
   createKomentar,
   getKomentarByLaporan,
+  deleteKomentar,
 };

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff } from "lucide-react";
 
 const RegisterPage = () => {
   const router = useRouter();
@@ -17,6 +18,7 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false);
   const [serverError, setServerError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // HANDLE INPUT
   const handleChange = (
@@ -222,22 +224,37 @@ const RegisterPage = () => {
                 />
               </div>
 
-              {/* Password */}
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-semibold tracking-wide">
-                  Kata Sandi
-                </label>
+              {/* PASSWORD */}
+                <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-semibold tracking-wide">
+                      Kata Sandi
+                    </label>
 
-                <input
-                  type="password"
-                  name="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  placeholder="Masukkan Password Anda"
-                  className="w-full px-4 py-3.5 rounded-lg bg-[#033a18] bg-opacity-60 border border-[#0a4d24] focus:outline-none focus:ring-1 focus:ring-green-400 placeholder-gray-400 text-sm"
-                  required
-                />
-              </div>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        name="password"
+                        value={formData.password}
+                        onChange={handleChange}
+                        placeholder="Masukkan Password Anda"
+                        className="w-full px-4 py-3.5 rounded-lg bg-[#033a18] bg-opacity-60 border border-[#0a4d24] focus:outline-none focus:ring-1 focus:ring-green-400 placeholder-gray-400 text-sm"
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setShowPassword((prev) => !prev)
+                        }
+                        className="absolute inset-y-0 right-3 flex items-center text-gray-300"
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
+                  </div>
 
               {/* Button */}
               <div className="pt-2">

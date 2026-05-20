@@ -14,6 +14,8 @@ import {
   MapPin,
   CalendarDays,
   Phone,
+  Trash2,
+  AlertCircle,
 } from "lucide-react";
 
 export default function DetailLaporanPage() {
@@ -25,11 +27,15 @@ export default function DetailLaporanPage() {
   const [komentar, setKomentar] = useState<any[]>([]);
   const [isiKomentar, setIsiKomentar] = useState("");
   const [loadingLike, setLoadingLike] = useState(false);
+  const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
 
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState<
     "success" | "error" | ""
   >("");
+
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
 
   const user =
     typeof window !== "undefined"
@@ -291,6 +297,78 @@ export default function DetailLaporanPage() {
     }
   };
 
+  // =====================================
+  // HAPUS KOMENTAR
+  // =====================================
+  const handleDeleteKomentar = async (komentarId: number) => {
+    try {
+      setDeletingCommentId(komentarId);
+
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setMessage(
+          "Silahkan login terlebih dahulu"
+        );
+
+        setMessageType("error");
+
+        return;
+      }
+
+      const response = await fetch(
+        `http://localhost:5000/api/komentar/${komentarId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+
+        // refresh komentar dari database
+        await fetchKomentar();
+
+        // update total komentar
+        setLaporan((prev: any) => ({
+          ...prev,
+          total_komen:
+            (prev.total_komen || 0) - 1,
+        }));
+
+        setMessage(
+          "Komentar berhasil dihapus"
+        );
+
+        setMessageType("success");
+
+        setShowDeleteModal(false);
+
+      } else {
+
+        setMessage(
+          data.message ||
+            "Gagal menghapus komentar"
+        );
+
+        setMessageType("error");
+      }
+    } catch (error) {
+      console.log(error);
+
+      setMessage("Terjadi kesalahan server");
+
+      setMessageType("error");
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
+
   return (
     <>
       <Navbar />
@@ -439,12 +517,13 @@ export default function DetailLaporanPage() {
               {/* MESSAGE */}
               {message && (
                 <div
-                  className={`mt-4 px-4 py-3 rounded-xl text-sm font-medium ${
+                  className={`mt-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 ${
                     messageType === "success"
                       ? "bg-green-100 text-green-700"
                       : "bg-red-100 text-red-700"
                   }`}
                 >
+                  <AlertCircle size={18} />
                   {message}
                 </div>
               )}
@@ -538,13 +617,28 @@ export default function DetailLaporanPage() {
                         {item.username}
                       </h3>
 
-                      <p className="text-sm text-black">
-                        {new Date(
-                          item.created_at
-                        ).toLocaleDateString(
-                          "id-ID"
+                      <div className="flex items-center gap-3">
+                        <p className="text-sm text-black">
+                          {new Date(
+                            item.created_at
+                          ).toLocaleDateString(
+                            "id-ID"
+                          )}
+                        </p>
+
+                        {user?.id === item.user_id && (
+                          <button
+                            onClick={() => {
+                              setSelectedDeleteId(item.id);
+                              setShowDeleteModal(true);
+                            }}
+                            className="text-red-500 hover:text-red-700 transition"
+                            title="Hapus komentar"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         )}
-                      </p>
+                      </div>
 
                     </div>
 
@@ -632,6 +726,47 @@ export default function DetailLaporanPage() {
           </div>
 
         </div>
+
+        {/* DELETE CONFIRMATION MODAL */}
+        {showDeleteModal && (
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertCircle className="text-red-600" size={22} />
+                </div>
+                <h2 className="text-xl font-bold text-black">
+                  Hapus Komentar?
+                </h2>
+              </div>
+
+              <p className="text-gray-600 mb-6">
+                Apakah Anda yakin ingin menghapus komentar ini? Tindakan ini tidak dapat dibatalkan.
+              </p>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 px-4 py-3 rounded-xl border border-gray-300 text-black font-semibold hover:bg-gray-100 transition"
+                >
+                  Batal
+                </button>
+
+                <button
+                  onClick={() => {
+                    if (selectedDeleteId) {
+                      handleDeleteKomentar(selectedDeleteId);
+                    }
+                  }}
+                  disabled={deletingCommentId !== null}
+                  className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition disabled:opacity-50"
+                >
+                  {deletingCommentId ? "Menghapus..." : "Hapus"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </>
   );

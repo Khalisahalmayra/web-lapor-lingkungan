@@ -16,6 +16,17 @@ import {
   Trash2,
 } from "lucide-react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+interface Comment {
+  id: number;
+  username: string;
+  isi_komentar?: string;
+  komentar?: string;
+  comment?: string;
+  created_at: string;
+}
+
 interface Laporan {
   id: number;
   judul_laporan: string;
@@ -29,6 +40,7 @@ interface Laporan {
   category_name: string;
   username: string;
   created_at: string;
+  comments?: Comment[];
 }
 
 export default function DetailLaporanPage() {
@@ -56,6 +68,9 @@ export default function DetailLaporanPage() {
   const [laporan, setLaporan] =
     useState<Laporan | null>(null);
 
+  const [komentar, setKomentar] = 
+    useState<Comment[]>([]);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -70,7 +85,7 @@ export default function DetailLaporanPage() {
         setLoading(true);
 
         const response = await fetch(
-          `http://localhost:5000/api/laporan/${id}`
+          `${API_URL}/api/laporan/${id}`
         );
 
         const data = await response.json();
@@ -88,42 +103,32 @@ export default function DetailLaporanPage() {
 
         setLaporan(laporanData);
 
-        if (
-          laporanData.status === "pending"
-        ) {
+        const comments =
+          laporanData.comments ||
+          laporanData.komentar ||
+          laporanData.komentar_user ||
+          [];
+
+        setKomentar(Array.isArray(comments) ? comments : []);
+
+        if (laporanData.status === "pending") {
           setStatus("Pending");
         }
-
-        if (
-          laporanData.status === "diproses"
-        ) {
+        if (laporanData.status === "diproses") {
           setStatus("Diproses");
         }
-
-        if (
-          laporanData.status === "selesai"
-        ) {
+        if (laporanData.status === "selesai") {
           setStatus("Selesai");
         }
-
-        if (
-          laporanData.status === "ditolak"
-        ) {
+        if (laporanData.status === "ditolak") {
           setStatus("Ditolak");
         }
 
         if (laporanData.pesan_admin) {
-          setAdminMessage(
-            laporanData.pesan_admin
-          );
+          setAdminMessage(laporanData.pesan_admin);
         }
-
-        if (
-          laporanData.alasan_penolakan
-        ) {
-          setAdminMessage(
-            laporanData.alasan_penolakan
-          );
+        if (laporanData.alasan_penolakan) {
+          setAdminMessage(laporanData.alasan_penolakan);
         }
       } catch (error) {
         console.log(error);
@@ -133,6 +138,26 @@ export default function DetailLaporanPage() {
     };
 
     fetchDetailLaporan();
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+
+    const fetchKomentar = async () => {
+      try {
+        const response = await fetch(
+          `${API_URL}/api/komentar/laporan/${id}`
+        );
+        const data = await response.json();
+        const komentarData = data.data || data || [];
+        setKomentar(Array.isArray(komentarData) ? komentarData : []);
+      } catch (error) {
+        console.error("Error fetching komentar:", error);
+        setKomentar([]);
+      }
+    };
+
+    fetchKomentar();
   }, [id]);
 
   // ==========================
@@ -408,6 +433,44 @@ export default function DetailLaporanPage() {
                 {laporan.isi_laporan}
               </p>
 
+            </div>
+
+            {/* KOMENTAR PENGGUNA */}
+            <div className="mt-10 bg-white rounded-3xl p-6 shadow-sm">
+              <h2 className="text-2xl font-bold text-gray-800">
+                Komentar Pengguna
+              </h2>
+
+              {komentar.length > 0 ? (
+                <div className="mt-5 space-y-4">
+                  {komentar.map((comment) => (
+                    <div
+                      key={comment.id}
+                      className="border border-gray-200 rounded-2xl p-4"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <p className="font-semibold text-gray-800">
+                          {comment.username}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {new Date(comment.created_at).toLocaleString()}
+                        </p>
+                      </div>
+
+                      <p className="text-gray-600 mt-3 leading-relaxed">
+                        {comment.isi_komentar ||
+                          comment.komentar ||
+                          comment.comment ||
+                          "-"}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-gray-500 mt-4">
+                  Belum ada komentar dari pengguna.
+                </p>
+              )}
             </div>
 
             {/* PESAN ADMIN */}

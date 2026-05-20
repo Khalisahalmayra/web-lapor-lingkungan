@@ -6,6 +6,7 @@ const {
   getUserById,
   updateUser,
   deleteUser,
+  createUser,
 } = require("../controller/userController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -17,7 +18,7 @@ const roleMiddleware = require("../middleware/roleMiddleware");
 router.get(
   "/",
   authMiddleware,
-  roleMiddleware(["superadmin"]),
+  roleMiddleware(["Superadmin"]),
   getAllUsers
 );
 
@@ -27,7 +28,7 @@ router.get(
 router.get(
   "/:id",
   authMiddleware,
-  roleMiddleware(["admin", "superadmin"]),
+  roleMiddleware(["admin", "Superadmin"]),
   getUserById
 );
 
@@ -37,7 +38,7 @@ router.get(
 router.put(
   "/:id",
   authMiddleware,
-  roleMiddleware(["superadmin"]),
+  roleMiddleware(["Superadmin"]),
   updateUser
 );
 
@@ -47,8 +48,18 @@ router.put(
 router.delete(
   "/:id",
   authMiddleware,
-  roleMiddleware(["superadmin"]),
+  roleMiddleware(["Superadmin"]),
   deleteUser
+);
+
+// ============================
+// CREATE USER (SUPERADMIN ONLY)
+// ============================
+router.post(
+  "/",
+  authMiddleware,
+  roleMiddleware(["Superadmin"]),
+  createUser
 );
 
 module.exports = router;

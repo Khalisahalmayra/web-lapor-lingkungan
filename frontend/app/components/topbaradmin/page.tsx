@@ -134,8 +134,7 @@ export default function TopbarAdmin() {
   // LOGOUT
   // =========================
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    localStorage.clear()
     window.location.href = "/masuk";
   };
 

@@ -53,6 +53,16 @@ export default function LaporPage() {
   const [showModal, setShowModal] =
     useState(false);
 
+  const [errors, setErrors] =
+    useState<{
+      judul?: string;
+      isi?: string;
+      gambar?: string;
+      tanggal?: string;
+      lokasi?: string;
+      kategori?: string;
+    }>({});
+
   // =====================
   // FETCH KATEGORI
   // =====================
@@ -115,6 +125,40 @@ export default function LaporPage() {
 
     setGambar(null);
     setPreview("");
+  };
+
+  // =====================
+  // VALIDATE FORM
+  // =====================
+  const validateForm = () => {
+    const newErrors: typeof errors = {};
+
+    if (!judul.trim()) {
+      newErrors.judul = "Judul laporan tidak boleh kosong";
+    }
+
+    if (!isi.trim()) {
+      newErrors.isi = "Deskripsi laporan tidak boleh kosong";
+    }
+
+    if (!gambar) {
+      newErrors.gambar = "Gambar laporan tidak boleh kosong";
+    }
+
+    if (!tanggal) {
+      newErrors.tanggal = "Tanggal kejadian tidak boleh kosong";
+    }
+
+    if (!lokasi.trim()) {
+      newErrors.lokasi = "Lokasi kejadian tidak boleh kosong";
+    }
+
+    if (!kategori) {
+      newErrors.kategori = "Kategori laporan tidak boleh kosong";
+    }
+
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
   };
 
   // =====================
@@ -481,7 +525,7 @@ export default function LaporPage() {
               className="mt-10 space-y-8"
             >
 
-              {/* JUDUL */}
+                          {/* JUDUL */}
               <div>
 
                 <label className="block text-white font-semibold text-lg mb-3">
@@ -494,12 +538,25 @@ export default function LaporPage() {
                   type="text"
                   required
                   value={judul}
-                  onChange={(e) =>
-                    setJudul(e.target.value)
-                  }
+                  onChange={(e) => {
+                    setJudul(e.target.value);
+                    if (errors.judul) {
+                      setErrors({ ...errors, judul: "" });
+                    }
+                  }}
                   placeholder="Masukkan Judul Laporan Anda"
-                  className="w-full border border-green-300 bg-transparent rounded-lg px-5 py-4 text-white outline-none"
+                  className={`w-full border rounded-lg px-5 py-4 text-white outline-none bg-transparent transition ${
+                    errors.judul
+                      ? "border-red-500 bg-red-500/10"
+                      : "border-green-300"
+                  }`}
                 />
+
+                {errors.judul && (
+                  <p className="text-red-400 text-sm mt-2 font-medium">
+                    ⚠️ {errors.judul}
+                  </p>
+                )}
 
               </div>
 
@@ -515,7 +572,11 @@ export default function LaporPage() {
                 <div className="grid grid-cols-1 lg:grid-cols-[250px_1fr] gap-6">
 
                   {/* UPLOAD IMAGE */}
-                  <label className="relative border border-green-300 rounded-lg min-h-[220px] overflow-hidden flex flex-col items-center justify-center text-white cursor-pointer hover:bg-white/5 transition">
+                  <label className={`relative border rounded-lg min-h-[220px] overflow-hidden flex flex-col items-center justify-center text-white cursor-pointer hover:bg-white/5 transition ${
+                    errors.gambar
+                      ? "border-red-500 bg-red-500/10"
+                      : "border-green-300"
+                  }`}>
 
                     {preview ? (
 
@@ -532,6 +593,7 @@ export default function LaporPage() {
                           onClick={(e) => {
                             e.preventDefault();
                             handleRemoveImage();
+                            setErrors({ ...errors, gambar: "" });
                           }}
                           className="absolute top-3 right-3 z-10 bg-red-500 hover:bg-red-600 text-white p-2 rounded-full shadow-lg transition"
                         >
@@ -558,21 +620,47 @@ export default function LaporPage() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={handleFileChange}
+                      onChange={(e) => {
+                        handleFileChange(e);
+                        if (errors.gambar) {
+                          setErrors({ ...errors, gambar: "" });
+                        }
+                      }}
                     />
 
                   </label>
 
+                  {errors.gambar && (
+                    <p className="text-red-400 text-sm font-medium flex items-center">
+                      ⚠️ {errors.gambar}
+                    </p>
+                  )}
+
                   {/* TEXTAREA */}
-                  <textarea
-                    required
-                    value={isi}
-                    onChange={(e) =>
-                      setIsi(e.target.value)
-                    }
-                    placeholder="Masukkan Deskripsi Laporan Anda"
-                    className="border border-green-300 rounded-lg bg-transparent p-5 min-h-[220px] text-white outline-none"
-                  />
+                  <div>
+                    <textarea
+                      required
+                      value={isi}
+                      onChange={(e) => {
+                        setIsi(e.target.value);
+                        if (errors.isi) {
+                          setErrors({ ...errors, isi: "" });
+                        }
+                      }}
+                      placeholder="Masukkan Deskripsi Laporan Anda"
+                      className={`w-full border rounded-lg bg-transparent p-5 min-h-[220px] text-white outline-none transition ${
+                        errors.isi
+                          ? "border-red-500 bg-red-500/10"
+                          : "border-green-300"
+                      }`}
+                    />
+
+                    {errors.isi && (
+                      <p className="text-red-400 text-sm mt-2 font-medium">
+                        ⚠️ {errors.isi}
+                      </p>
+                    )}
+                  </div>
 
                 </div>
               </div>
@@ -592,15 +680,29 @@ export default function LaporPage() {
                     type="date"
                     required
                     value={tanggal}
-                    onChange={(e) =>
-                      setTanggal(e.target.value)
-                    }
-                    className="w-full border border-green-300 bg-transparent rounded-lg px-5 py-4 text-white outline-none"
+                    onChange={(e) => {
+                      setTanggal(e.target.value);
+                      if (errors.tanggal) {
+                        setErrors({ ...errors, tanggal: "" });
+                      }
+                    }}
+                    className={`w-full border rounded-lg px-5 py-4 text-white outline-none bg-transparent transition ${
+                      errors.tanggal
+                        ? "border-red-500 bg-red-500/10"
+                        : "border-green-300"
+                    }`}
                   />
 
-                  <CalendarDays className="absolute right-5 top-1/2 -translate-y-1/2 text-white" />
+                  <CalendarDays className="absolute right-5 top-1/2 -translate-y-1/2 text-white pointer-events-none" />
 
                 </div>
+
+                {errors.tanggal && (
+                  <p className="text-red-400 text-sm mt-2 font-medium">
+                    ⚠️ {errors.tanggal}
+                  </p>
+                )}
+
               </div>
 
               {/* LOKASI */}
@@ -616,12 +718,25 @@ export default function LaporPage() {
                   type="text"
                   required
                   value={lokasi}
-                  onChange={(e) =>
-                    setLokasi(e.target.value)
-                  }
+                  onChange={(e) => {
+                    setLokasi(e.target.value);
+                    if (errors.lokasi) {
+                      setErrors({ ...errors, lokasi: "" });
+                    }
+                  }}
                   placeholder="Masukkan lokasi kejadian"
-                  className="w-full border border-green-300 bg-transparent rounded-lg px-5 py-4 text-white outline-none"
+                  className={`w-full border rounded-lg px-5 py-4 text-white outline-none bg-transparent transition ${
+                    errors.lokasi
+                      ? "border-red-500 bg-red-500/10"
+                      : "border-green-300"
+                  }`}
                 />
+
+                {errors.lokasi && (
+                  <p className="text-red-400 text-sm mt-2 font-medium">
+                    ⚠️ {errors.lokasi}
+                  </p>
+                )}
 
               </div>
 
@@ -639,10 +754,17 @@ export default function LaporPage() {
                   <select
                     required
                     value={kategori}
-                    onChange={(e) =>
-                      setKategori(e.target.value)
-                    }
-                    className="w-full border border-green-300 bg-[#006b1a] rounded-lg px-5 py-4 text-white appearance-none outline-none"
+                    onChange={(e) => {
+                      setKategori(e.target.value);
+                      if (errors.kategori) {
+                        setErrors({ ...errors, kategori: "" });
+                      }
+                    }}
+                    className={`w-full border rounded-lg px-5 py-4 text-white appearance-none outline-none transition bg-[#006b1a] ${
+                      errors.kategori
+                        ? "border-red-500 bg-red-500/10"
+                        : "border-green-300"
+                    }`}
                   >
 
                     <option
@@ -666,9 +788,16 @@ export default function LaporPage() {
 
                   </select>
 
-                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-white" />
+                  <ChevronDown className="absolute right-5 top-1/2 -translate-y-1/2 text-white pointer-events-none" />
 
                 </div>
+
+                {errors.kategori && (
+                  <p className="text-red-400 text-sm mt-2 font-medium">
+                    ⚠️ {errors.kategori}
+                  </p>
+                )}
+
               </div>
 
               {/* BUTTON */}
