@@ -10,6 +10,8 @@ const {
 
 const authMiddleware = require("../middleware/authMiddleware");
 
+const upload = require("../middleware/upload");
+
 // REGISTER
 router.post("/register", register);
 
@@ -27,6 +29,7 @@ router.get(
 router.put(
   "/update-profile",
   authMiddleware,
+  upload.single("profile"),
   updateProfile
 );
 

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { getSession } from "next-auth/react";
 
 import {
   ArrowLeft,
@@ -164,95 +165,103 @@ export default function DetailLaporanPage() {
   // UPDATE STATUS
   // ==========================
   const updateStatus = async (
-    newStatus: string
-  ) => {
-    try {
-      const token =
-        localStorage.getItem("token");
-
-      const response = await fetch(
-        `http://localhost:5000/api/laporan/${id}/status`,
-        {
-          method: "PUT",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization: `Bearer ${token}`,
-          },
-
-          body: JSON.stringify({
-            status:
-              newStatus.toLowerCase(),
-
-            pesan_admin:
-              newStatus === "Selesai"
-                ? adminMessage
-                : null,
-
-            alasan_penolakan:
-              newStatus === "Ditolak"
-                ? adminMessage
-                : null,
-          }),
-        }
-      );
-
-      const result =
-        await response.json();
-
-      console.log(result);
-
-      setStatus(newStatus);
-
-      setLaporan((prev) =>
-        prev
-          ? {
-              ...prev,
-              status:
-                newStatus.toLowerCase(),
-            }
-          : prev
-      );
-    } catch (error) {
-      console.log(error);
-    }
-  };
-
-  // ==========================
-  // DELETE LAPORAN
-  // ==========================
-  const handleDelete = async () => {
+  newStatus: string
+) => {
   try {
-    const token =
-      localStorage.getItem("token");
+    const session = await getSession();
+
+    const token = session?.accessToken;
+
+    console.log(
+      "UPDATE STATUS TOKEN:",
+      token
+    );
+
+    if (!token) {
+      alert("Token tidak ditemukan");
+      return;
+    }
 
     const response = await fetch(
-      `http://localhost:5000/api/laporan/${id}`,
+      `http://localhost:5000/api/laporan/${id}/status`,
       {
-        method: "DELETE",
-
+        method: "PUT",
         headers: {
+          "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
+        body: JSON.stringify({
+          status: newStatus.toLowerCase(),
+          pesan_admin:
+            newStatus === "Selesai"
+              ? adminMessage
+              : null,
+          alasan_penolakan:
+            newStatus === "Ditolak"
+              ? adminMessage
+              : null,
+        }),
       }
     );
 
-    const result =
-      await response.json();
+    const result = await response.json();
 
     console.log(result);
 
-    setShowDeleteModal(false);
+    setStatus(newStatus);
 
-    window.location.href =
-      "/admin/dashboard";
-
+    setLaporan((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: newStatus.toLowerCase(),
+          }
+        : prev
+    );
   } catch (error) {
     console.log(error);
   }
 };
+
+  // ==========================
+  // DELETE LAPORAN
+  // ==========================
+    const handleDelete = async () => {
+      try {
+        const session = await getSession();
+
+        const token = session?.accessToken;
+
+        console.log("DELETE TOKEN:", token);
+
+        if (!token) {
+          alert("Token tidak ditemukan");
+          return;
+        }
+
+        const response = await fetch(
+          `http://localhost:5000/api/laporan/${id}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const result =
+          await response.json();
+
+        console.log(result);
+
+        setShowDeleteModal(false);
+
+        window.location.href =
+          "/admin/dashboard";
+      } catch (error) {
+        console.log(error);
+      }
+    };
 
   const getStatusStyle = () => {
     switch (status) {
@@ -318,11 +327,17 @@ export default function DetailLaporanPage() {
 
           {/* IMAGE */}
           <div className="bg-white rounded-3xl overflow-hidden shadow-sm">
-            <img
-              src={laporan.gambar}
-              alt="laporan"
-              className="w-full h-[400px] object-cover"
-            />
+            {laporan.gambar ? (
+              <img
+                src={`http://localhost:5000/uploads/${laporan.gambar}`}
+                alt="laporan"
+                className="w-full h-[400px] object-cover"
+              />
+            ) : (
+              <div className="w-full h-[400px] bg-gray-200 flex items-center justify-center">
+                <p className="text-gray-500">Tidak ada gambar</p>
+              </div>
+            )}
           </div>
 
           {/* DETAIL */}

@@ -10,6 +10,8 @@ import {
   Users,
 } from "lucide-react";
 
+import { getSession } from "next-auth/react";
+
 import SidebarSuperAdmin from "../../components/sidebarsuperadmin/page";
 import TopbarSuperAdmin from "../../components/topbarsuperadmin/page";
 
@@ -46,54 +48,52 @@ export default function DashboardSuperAdminPage() {
   // FETCH DASHBOARD DATA
   // =====================================
   useEffect(() => {
-    const fetchDashboard = async () => {
-      try {
-        const token =
-          localStorage.getItem("token");
+  const fetchDashboard = async () => {
+    try {
+      const session = await getSession();
 
-        // ================================
-        // FETCH LAPORAN
-        // ================================
-        const laporanResponse =
-          await fetch(
-            "http://localhost:5000/api/laporan",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
+      const token = session?.accessToken;
 
-        const laporanData =
-          await laporanResponse.json();
+      if (!token) {
+        throw new Error("Token tidak ditemukan");
+      }
+        // ================================
+        // FETCH BOTH IN PARALLEL
+        // ================================
+        const [laporanResponse, userResponse] =
+          await Promise.all([
+            fetch(
+              "http://localhost:5000/api/laporan",
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            ),
+            fetch(
+              "http://localhost:5000/api/users",
+              {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+              }
+            ),
+          ]);
 
         if (laporanResponse.ok) {
+          const laporanData =
+            await laporanResponse.json();
           setLaporan(laporanData);
         }
 
-        // ================================
-        // FETCH USERS
-        // ================================
-        const userResponse =
-          await fetch(
-            "http://localhost:5000/api/users",
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            }
-          );
-
-        const userData =
-          await userResponse.json();
-
         if (userResponse.ok) {
+          const userData =
+            await userResponse.json();
           const admins =
             userData.filter(
               (user: User) =>
                 user.role === "admin"
             );
-
           setAdminAktif(admins);
         }
       } catch (error) {

@@ -10,6 +10,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
+import { getSession } from "next-auth/react";
 
 import SidebarSuperAdmin from "../../components/sidebarsuperadmin/page";
 import TopbarSuperAdmin from "../../components/topbarsuperadmin/page";
@@ -32,6 +33,14 @@ export default function UserSuperAdminPage() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openTambahModal, setOpenTambahModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
+
+  // laporan stats
+  const [laporanStats, setLaporanStats] = useState({
+    total: 0,
+    pending: 0,
+    diproses: 0,
+    selesai: 0,
+  });
 
   const [profileData, setProfileData] = useState({
     username: "",
@@ -61,36 +70,67 @@ export default function UserSuperAdminPage() {
   }, []);
 
   const fetchAdmins = async () => {
-    try {
-      setLoading(true);
-      const token = localStorage.getItem("token");
-      const response = await fetch(`${API_URL}/api/users`, {
+  try {
+    setLoading(true);
+
+    const session = await getSession();
+    const token = session?.accessToken;
+
+    if (!token) {
+      throw new Error("Token tidak ditemukan");
+    }
+
+    // Fetch admins dan laporan stats in parallel
+    const [adminResponse, laporanResponse] = await Promise.all([
+      fetch(`${API_URL}/api/users`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
+      }),
+      fetch(`${API_URL}/api/laporan`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }),
+    ]);
+
+    if (!adminResponse.ok) throw new Error("Gagal fetch users");
+
+    const adminData = await adminResponse.json();
+    const formattedAdmins = adminData.map((user: any) => ({
+      id: user.id,
+      nama: user.username,
+      email: user.email,
+      departemen: user.role,
+      status: "Aktif",
+      statusColor: "bg-green-100 text-green-700",
+      initials: user.username.charAt(0).toUpperCase(),
+    }));
+
+    setAdmins(formattedAdmins);
+
+    // Process laporan stats
+    if (laporanResponse.ok) {
+      const laporanData = await laporanResponse.json();
+      const total = laporanData.length;
+      const pending = laporanData.filter((item: any) => item.status === "pending").length;
+      const diproses = laporanData.filter((item: any) => item.status === "diproses" || item.status === "sedang diproses").length;
+      const selesai = laporanData.filter((item: any) => item.status === "selesai").length;
+
+      setLaporanStats({
+        total,
+        pending,
+        diproses,
+        selesai,
       });
-
-      if (!response.ok) throw new Error("Gagal fetch users");
-
-      const data = await response.json();
-      const formattedAdmins = data.map((user: any) => ({
-        id: user.id,
-        nama: user.username,
-        email: user.email,
-        departemen: user.role,
-        status: "Aktif",
-        statusColor: "bg-green-100 text-green-700",
-        initials: user.username.charAt(0).toUpperCase(),
-      }));
-
-      setAdmins(formattedAdmins);
-    } catch (error) {
-      console.error("Error fetching admins:", error);
-      setNotification({ message: "Gagal memuat data admin", type: "error" });
-    } finally {
-      setLoading(false);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching data:", error);
+    setNotification({ message: "Gagal memuat data", type: "error" });
+  } finally {
+    setLoading(false);
+  }
+};
 
   // Create admin baru
   const handleTambahAdmin = async () => {
@@ -132,7 +172,12 @@ export default function UserSuperAdminPage() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const session = await getSession();
+      const token = session?.accessToken;
+
+    if (!token) {
+      throw new Error("Token tidak ditemukan");
+}
       const response = await fetch(`${API_URL}/api/users`, {
         method: "POST",
         headers: {
@@ -142,9 +187,10 @@ export default function UserSuperAdminPage() {
         body: JSON.stringify(newAdmin),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const err = await response.json().catch(() => null);
-        throw new Error(err?.message || "Gagal membuat admin");
+        throw new Error(data.message || "Gagal membuat admin");
       }
 
       setNotification({ message: "Admin berhasil ditambahkan", type: "success" });
@@ -195,7 +241,12 @@ export default function UserSuperAdminPage() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const session = await getSession();
+      const token = session?.accessToken;
+
+    if (!token) {
+      throw new Error("Token tidak ditemukan");
+}
       const response = await fetch(`${API_URL}/api/users/${selectedAdmin.id}`, {
         method: "PUT",
         headers: {
@@ -232,7 +283,12 @@ export default function UserSuperAdminPage() {
     if (!selectedDeleteId) return;
     try {
       setShowDeleteModal(false);
-      const token = localStorage.getItem("token");
+      const session = await getSession();
+      const token = session?.accessToken;
+
+    if (!token) {
+      throw new Error("Token tidak ditemukan");
+}
       const response = await fetch(`${API_URL}/api/users/${selectedDeleteId}`, {
         method: "DELETE",
         headers: {
@@ -280,9 +336,89 @@ export default function UserSuperAdminPage() {
 
         {/* PAGE CONTENT */}
         <div className="p-6">
-          {/* Notification */}
+
+          {/* TOP SUMMARY */}
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
+            <div className="xl:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
+              <p className="text-gray-500 font-bold uppercase tracking-wide text-sm">
+                Ringkasan Sistem
+              </p>
+
+              <h1 className="text-3xl font-bold text-[#052e24] mt-3">
+                Status Pelaporan Lingkungan
+              </h1>
+
+              <div className="grid grid-cols-3 gap-5 mt-8">
+                <div className="border-l-4 border-[#0B6B2B] pl-4">
+                  <h2 className="text-4xl font-bold text-[#052e24]">
+                    {laporanStats.total}
+                  </h2>
+                  <p className="text-gray-600 mt-2 text-sm">
+                    Total Laporan
+                  </p>
+                </div>
+
+                <div className="border-l-4 border-[#0B6B2B] pl-4">
+                  <h2 className="text-4xl font-bold text-[#052e24]">
+                    {laporanStats.pending}
+                  </h2>
+                  <p className="text-gray-600 mt-2 text-sm">
+                    Tertunda
+                  </p>
+                </div>
+
+                <div className="border-l-4 border-[#0B6B2B] pl-4">
+                  <h2 className="text-4xl font-bold text-[#052e24]">
+                    {laporanStats.total > 0 ? ((laporanStats.selesai / laporanStats.total) * 100).toFixed(0) : 0}%
+                  </h2>
+                  <p className="text-gray-600 mt-2 text-sm">
+                    Penyelesaian
+                  </p>
+                </div>
+              </div>
+
+              <div className="absolute right-6 top-6 opacity-10">
+                <ShieldAlert size={110} />
+              </div>
+            </div>
+
+            <div className="space-y-5">
+              <div className="bg-[#0f4c37] rounded-2xl p-5 text-white">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="uppercase text-xs opacity-80">
+                      Peringatan Aktif
+                    </p>
+                    <h2 className="text-3xl font-bold mt-3">
+                      {laporanStats.pending} Tertunda
+                    </h2>
+                  </div>
+                  <ShieldAlert size={32} />
+                </div>
+              </div>
+
+              <div className="bg-[#9be7bf] rounded-2xl p-5">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="uppercase text-xs text-[#0B6B2B]">
+                      Admin Aktif
+                    </p>
+                    <h2 className="text-3xl font-bold text-[#0B6B2B] mt-3">
+                      {admins.length} Akun
+                    </h2>
+                  </div>
+                  <ShieldAlert
+                    size={32}
+                    className="text-[#0B6B2B]"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Notification - MOVED BELOW SUMMARY */}
           {notification.message && (
-            <div className={`mb-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 ${notification.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
+            <div className={`mt-6 mb-4 px-4 py-3 rounded-xl text-sm font-medium flex items-center gap-3 ${notification.type === "success" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}>
               <AlertCircle size={18} />
               {notification.message}
             </div>
@@ -317,7 +453,7 @@ export default function UserSuperAdminPage() {
 
                 <div className="space-y-4">
                   <div>
-                    <label className="text-sm font-semibold text-gray-600">
+                    <label className="text-sm font-semibold text-black">
                       Username
                     </label>
 
@@ -330,7 +466,7 @@ export default function UserSuperAdminPage() {
                           username: e.target.value,
                         })
                       }
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
+                      className="w-full border border-gray-300 text-black rounded-xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
                     />
                     {editAdminErrors.username && (
                       <p className="text-red-600 text-sm mt-1">{editAdminErrors.username}</p>
@@ -351,7 +487,7 @@ export default function UserSuperAdminPage() {
                           email: e.target.value,
                         })
                       }
-                      className="w-full border border-gray-300 rounded-xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
+                      className="w-full border border-gray-300 text-black rounded-xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
                     />
                     {editAdminErrors.email && (
                       <p className="text-red-600 text-sm mt-1">{editAdminErrors.email}</p>
@@ -487,86 +623,6 @@ export default function UserSuperAdminPage() {
             </div>
           )}
 
-          {/* TOP SUMMARY */}
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-            <div className="xl:col-span-2 bg-white border border-gray-200 rounded-2xl p-6 relative overflow-hidden">
-              <p className="text-gray-500 font-bold uppercase tracking-wide text-sm">
-                Ringkasan Sistem
-              </p>
-
-              <h1 className="text-3xl font-bold text-[#052e24] mt-3">
-                Status Pelaporan Lingkungan
-              </h1>
-
-              <div className="grid grid-cols-3 gap-5 mt-8">
-                <div className="border-l-4 border-[#0B6B2B] pl-4">
-                  <h2 className="text-4xl font-bold text-[#052e24]">
-                    1,284
-                  </h2>
-                  <p className="text-gray-600 mt-2 text-sm">
-                    Total Laporan
-                  </p>
-                </div>
-
-                <div className="border-l-4 border-[#0B6B2B] pl-4">
-                  <h2 className="text-4xl font-bold text-[#052e24]">
-                    42
-                  </h2>
-                  <p className="text-gray-600 mt-2 text-sm">
-                    Tertunda
-                  </p>
-                </div>
-
-                <div className="border-l-4 border-[#0B6B2B] pl-4">
-                  <h2 className="text-4xl font-bold text-[#052e24]">
-                    98%
-                  </h2>
-                  <p className="text-gray-600 mt-2 text-sm">
-                    Penyelesaian
-                  </p>
-                </div>
-              </div>
-
-              <div className="absolute right-6 top-6 opacity-10">
-                <ShieldAlert size={110} />
-              </div>
-            </div>
-
-            <div className="space-y-5">
-              <div className="bg-[#0f4c37] rounded-2xl p-5 text-white">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="uppercase text-xs opacity-80">
-                      Peringatan Aktif
-                    </p>
-                    <h2 className="text-3xl font-bold mt-3">
-                      12 Pelanggaran
-                    </h2>
-                  </div>
-                  <ShieldAlert size={32} />
-                </div>
-              </div>
-
-              <div className="bg-[#9be7bf] rounded-2xl p-5">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="uppercase text-xs text-[#0B6B2B]">
-                      Admin Aktif
-                    </p>
-                    <h2 className="text-3xl font-bold text-[#0B6B2B] mt-3">
-                      {admins.length} Akun
-                    </h2>
-                  </div>
-                  <ShieldAlert
-                    size={32}
-                    className="text-[#0B6B2B]"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* TABLE */}
           <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden mt-8">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-5 px-6 py-5 border-b border-gray-200">
               <div>

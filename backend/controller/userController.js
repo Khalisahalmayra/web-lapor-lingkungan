@@ -63,6 +63,12 @@ const createUser = async (req, res) => {
   try {
     const { username, email, password, role } = req.body;
 
+    if (!username || !email || !password) {
+      return res.status(400).json({
+        message: "Username, email, dan password harus diisi",
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await pool.query(
@@ -79,8 +85,18 @@ const createUser = async (req, res) => {
       data: result.rows[0],
     });
   } catch (error) {
-    console.log(error);
-    res.status(500).json({ message: "Server Error" });
+    console.error("Error creating user:", error);
+    
+    if (error.code === "23505") {
+      const field = error.detail?.includes("username") ? "Username" : "Email";
+      return res.status(409).json({
+        message: `${field} sudah terdaftar`,
+      });
+    }
+
+    res.status(500).json({
+      message: error.message || "Gagal membuat user",
+    });
   }
 };
 

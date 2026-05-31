@@ -104,12 +104,10 @@ const login = async (req, res) => {
 
     const user = result.rows[0];
 
-    // cek password
-    const validPassword =
-      await bcrypt.compare(
-        password,
-        user.password
-      );
+    const validPassword = await bcrypt.compare(
+      password,
+      user.password
+    );
 
     if (!validPassword) {
       return res.status(400).json({
@@ -117,7 +115,6 @@ const login = async (req, res) => {
       });
     }
 
-    // generate token
     const token = jwt.sign(
       {
         id: user.id,
@@ -129,11 +126,9 @@ const login = async (req, res) => {
       }
     );
 
-    // response
     return res.json({
       message: "Login berhasil",
       token,
-
       user: {
         id: user.id,
         username: user.username,
@@ -195,20 +190,15 @@ const profile = async (req, res) => {
 // =========================
 // UPDATE PROFILE
 // =========================
-const updateProfile = async (
-  req,
-  res
-) => {
+const updateProfile = async (req, res) => {
   try {
 
     const {
       username,
       email,
       password,
-      profile,
     } = req.body;
 
-    // ambil user lama
     const oldUser = await pool.query(
       `
       SELECT *
@@ -218,24 +208,18 @@ const updateProfile = async (
       [req.user.id]
     );
 
-    // cek user
-    if (
-      oldUser.rows.length === 0
-    ) {
+    if (oldUser.rows.length === 0) {
       return res.status(404).json({
-        message:
-          "User tidak ditemukan",
+        message: "User tidak ditemukan",
       });
     }
 
     const currentUser =
       oldUser.rows[0];
 
-    // password baru
     let hashedPassword =
       currentUser.password;
 
-    // kalau password diisi
     if (
       password &&
       password.trim() !== ""
@@ -247,7 +231,11 @@ const updateProfile = async (
         );
     }
 
-    // update database
+    // FOTO PROFILE DARI MULTER
+    const profile = req.file
+      ? req.file.filename
+      : currentUser.profile;
+
     const result = await pool.query(
       `
       UPDATE users
@@ -257,7 +245,6 @@ const updateProfile = async (
         password = $3,
         profile = $4
       WHERE id = $5
-
       RETURNING
         id,
         username,
@@ -274,8 +261,7 @@ const updateProfile = async (
 
         hashedPassword,
 
-        profile ||
-          currentUser.profile,
+        profile,
 
         req.user.id,
       ]
@@ -284,7 +270,6 @@ const updateProfile = async (
     return res.json({
       message:
         "Profile berhasil diupdate",
-
       user: result.rows[0],
     });
 

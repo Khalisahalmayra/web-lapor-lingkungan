@@ -18,6 +18,7 @@ import {
   Pencil,
   Settings,
 } from "lucide-react";
+import { getSession } from "next-auth/react";
 
 import SidebarSuperAdmin from "../../components/sidebarsuperadmin/page";
 import TopbarSuperAdmin from "../../components/topbarsuperadmin/page";
@@ -38,28 +39,36 @@ export default function LaporanSuperAdminPage() {
   // GET LAPORAN FROM BACKEND
   // =========================
   useEffect(() => {
-    const fetchLaporan = async () => {
-      try {
-        const token = localStorage.getItem("token");
+  const fetchLaporan = async () => {
+    try {
+      const session = await getSession();
 
-        const res = await fetch("http://localhost:5000/api/laporan", {
+      const token = session?.accessToken;
+
+      if (!token) {
+        throw new Error("Token tidak ditemukan");
+      }
+
+      const res = await fetch(
+        "http://localhost:5000/api/laporan",
+        {
           headers: {
             Authorization: `Bearer ${token}`,
           },
-        });
+        }
+      );
 
-        const data = await res.json();
+      const data = await res.json();
 
-        // pastikan array
-        setLaporan(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.log(err);
-        setLaporan([]);
-      }
-    };
+      setLaporan(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.log(err);
+      setLaporan([]);
+    }
+  };
 
-    fetchLaporan();
-  }, []);
+  fetchLaporan();
+}, []);
 
   const getStatusStyle = (status: string) => {
   switch (status?.toLowerCase()) {

@@ -107,11 +107,14 @@ const createLaporan = async (req, res) => {
     const {
       judul_laporan,
       isi_laporan,
-      gambar,
       tanggal_kejadian,
       lokasi_kejadian,
       kategori_id,
     } = req.body;
+
+    const gambar = req.file
+      ? req.file.filename
+      : null;
 
     const user_id = req.user.id;
 
@@ -127,9 +130,7 @@ const createLaporan = async (req, res) => {
         user_id,
         kategori_id
       )
-
       VALUES ($1,$2,$3,$4,$5,$6,$7)
-
       RETURNING *
       `,
       [

@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   XCircle,
 } from "lucide-react";
+import { useSession } from "next-auth/react";
 
 // =========================
 // TYPES
@@ -35,6 +36,7 @@ type StatusType =
   | "diproses"
   | "selesai"
   | "ditolak";
+
 
 // =========================
 // TABS
@@ -86,6 +88,8 @@ const formatDate = (date: string) => {
 // PAGE
 // =========================
 export default function RiwayatPage() {
+  const { data: session } = useSession();
+  const token = session?.accessToken;
   const [activeTab, setActiveTab] =
     useState("Semua");
 
@@ -101,21 +105,27 @@ export default function RiwayatPage() {
   useEffect(() => {
     const fetchRiwayat = async () => {
       try {
-        const token =
-          localStorage.getItem("token");
+        if (!token) {
+          console.log("No token / belum login");
+          setLoading(false);
+          return;
+        }
 
         const res = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/laporan/riwayat`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        `${process.env.NEXT_PUBLIC_API_URL}/api/laporan/riwayat`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
 
-        const data = await res.json();
+      if (!res.ok) {
+        throw new Error("Gagal mengambil data riwayat");
+      }
 
-        setLaporan(data);
+      const data = await res.json();
+      setLaporan(data);
 
       } catch (error) {
         console.log(error);
@@ -125,7 +135,7 @@ export default function RiwayatPage() {
     };
 
     fetchRiwayat();
-  }, []);
+  }, [token]);
 
   // =========================
   // FILTER
@@ -306,7 +316,7 @@ export default function RiwayatPage() {
 
                         {item.gambar ? (
                           <img
-                            src={item.gambar}
+                            src={`http://localhost:5000/uploads/${item.gambar}`}
                             alt="laporan"
                             className="w-full h-full object-cover"
                           />

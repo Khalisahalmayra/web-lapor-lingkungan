@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
+import { getSession, signIn } from "next-auth/react";
 
 const LoginPage = () => {
   const router = useRouter();
@@ -52,81 +53,51 @@ const LoginPage = () => {
   // =========================
   // HANDLE LOGIN
   // =========================
-  const handleSubmit = async (
-    e: React.FormEvent<HTMLFormElement>
-  ) => {
-    e.preventDefault();
 
-    setServerError("");
-    setLoading(true);
+ const handleSubmit = async (
+  e: React.FormEvent<HTMLFormElement>
+) => {
+  e.preventDefault();
 
-    try {
-      const response = await fetch(
-        "http://localhost:5000/api/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email: formData.email,
-            password: formData.password,
-          }),
-        }
-      );
+  setServerError("");
+  setLoading(true);
 
-      const data = await response.json();
+  try {
+    const result = await signIn("credentials", {
+      email: formData.email,
+      password: formData.password,
+      redirect: false,
+    });
 
-      // =========================
-      // ERROR HANDLING
-      // =========================
-      if (!response.ok) {
-        setServerError(data.message || "Email atau password salah");
-        return;
-      }
-
-      if (!data.token) {
-        setServerError("Token tidak ditemukan");
-        return;
-      }
-
-      // =========================
-      // SAVE TOKEN ONLY
-      // =========================
-      localStorage.setItem("token", data.token);
-
-      // =========================
-      // GET USER FROM BACKEND (PROFILE)
-      // =========================
-      const profile = await getProfile(data.token);
-
-      localStorage.setItem("user", JSON.stringify(profile));
-
-      // trigger update topbar
-      window.dispatchEvent(new Event("auth-change"));
-
-      // =========================
-      // REDIRECT BY ROLE
-      // =========================
-      switch (profile.role) {
-        case "Superadmin":
-          router.push("/superadmin/dashboard");
-          break;
-
-        case "admin":
-          router.push("/admin/dashboard");
-          break;
-
-        default:
-          router.push("/user/beranda");
-          break;
-      }
-    } catch (error) {
-      setServerError("Server gagal terhubung");
-    } finally {
-      setLoading(false);
+    if (result?.error) {
+      setServerError("Email atau password salah");
+      return;
     }
-  };
+
+    const session = await getSession();
+    const role = session?.user?.role;
+
+    console.log("SESSION:", session);
+    console.log("ROLE:", session?.user?.role);
+    console.log("TOKEN:", session?.accessToken);
+
+    if (role === "admin") {
+      router.push("/admin/dashboard");
+    } else if (role === "user") {
+      router.push("/user/beranda");
+    } else if (role === "Superadmin") {
+      router.push("/superadmin/dashboard");
+    } else {
+      setServerError("Role pengguna tidak dikenali");
+    }
+
+    
+  } catch (error) {
+    setServerError("Server gagal terhubung");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="relative min-h-screen w-full flex items-center justify-center bg-white overflow-hidden font-sans">

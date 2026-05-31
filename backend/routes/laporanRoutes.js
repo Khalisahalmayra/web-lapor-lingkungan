@@ -17,6 +17,8 @@ const {
 
 const authMiddleware = require("../middleware/authMiddleware");
 
+const upload = require("../middleware/upload");
+
 // ==========================
 // PUBLIC FEED
 // ==========================
@@ -74,6 +76,7 @@ router.get(
 router.post(
   "/",
   authMiddleware,
+  upload.single("gambar"),
   createLaporan
 );
 

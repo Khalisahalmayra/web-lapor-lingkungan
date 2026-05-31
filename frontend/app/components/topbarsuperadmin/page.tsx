@@ -15,6 +15,10 @@ import {
   X,
 } from "lucide-react";
 
+import { getSession, signOut } from "next-auth/react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
 export default function TopbarAdmin() {
   const fileInputRef =
     useRef<HTMLInputElement | null>(null);
@@ -51,38 +55,57 @@ export default function TopbarAdmin() {
   useEffect(() => {
     const fetchProfile = async () => {
       try {
-        const token =
-          localStorage.getItem("token");
+        
+        const data = await getSession();
+        console.log("Session in TopbarAdmin:", data);
 
-        if (!token) return;
+        if (!data || !data.accessToken) {
+          throw new Error(
+            "User not authenticated"
+          );
+        } 
 
-        const response = await fetch(
-          "http://localhost:5000/api/auth/profile",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const data = await response.json();
-
-        if (response.ok) {
+        if (data) {
           setProfileData({
             username:
-              data.username || "",
+              data.user.name || "",
 
             email:
-              data.email || "",
+              data.user.email || "",
 
             password: "",
 
             role:
-              data.role || "",
+              data.user.role || "",
 
             photo:
-              data.profile || "",
+              data.user.image || "",
           });
+        }
+
+        if (data?.accessToken) {
+          const profileResponse = await fetch(
+            `${API_URL}/api/auth/profile`,
+            {
+              headers: {
+                Authorization: `Bearer ${data.accessToken}`,
+              },
+            }
+          );
+          if (profileResponse.ok) {
+            const profileInfo = await profileResponse.json();
+            setProfileData({
+              username: profileInfo.username || "",
+              email: profileInfo.email || "",
+              password: "",
+              role: profileInfo.role || "",
+              photo: profileInfo.profile || profileInfo.image || "",
+            });
+            sessionStorage.setItem(
+              "user",
+              JSON.stringify(profileInfo)
+            );
+          }
         }
       } catch (error) {
         console.log(error);
@@ -121,11 +144,16 @@ export default function TopbarAdmin() {
     try {
       setLoading(true);
 
-      const token =
-        localStorage.getItem("token");
+      const session = await getSession();
+
+const token = session?.accessToken;
+
+if (!token) {
+  throw new Error("Token tidak ditemukan");
+}
 
       const response = await fetch(
-        "http://localhost:5000/api/auth/update-profile",
+        `${API_URL}/api/auth/update-profile`,
         {
           method: "PUT",
 
@@ -155,7 +183,7 @@ export default function TopbarAdmin() {
       const data = await response.json();
 
       if (response.ok) {
-        localStorage.setItem(
+        sessionStorage.setItem(
           "user",
           JSON.stringify(data.user)
         );
@@ -207,38 +235,16 @@ export default function TopbarAdmin() {
     }
   };
 
-  const handleLogout = () => {
-  localStorage.clear()
-  window.location.href = "/masuk";
-};
-
   // =====================================
   // LOGOUT
   // =====================================
-  async function apiFetch(url: string, options?: RequestInit) {
-  const token = localStorage.getItem("token");
+  const handleLogout = async () => {
+  sessionStorage.clear();
 
-  const res = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
+  await signOut({
+    callbackUrl: "/masuk",
   });
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    if (data.message === "Token expired, silakan login ulang") {
-      localStorage.removeItem("token");
-      window.location.href = "/masuk";
-    }
-
-    throw new Error(data.message || `HTTP ${res.status}`);
-  }
-
-  return data;
-}
+};
 
   return (
     <>

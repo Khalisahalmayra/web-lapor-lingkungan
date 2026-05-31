@@ -231,52 +231,6 @@ export default function BerandaPage() {
             </div>
 
           </div>
-
-          {/* TITLE */}
-          <div className="flex justify-center mt-10">
-            <div className="bg-[#FAFAF5] border border-black shadow-md rounded-xl px-8 py-4">
-              <h3 className="text-black text-lg lg:text-2xl font-semibold text-center">
-                Tips Yang Bisa Kamu Lakukan Untuk Lingkungan
-              </h3>
-            </div>
-          </div>
-
-          {/* TIPS */}
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-8">
-
-            <div className="bg-[#5A8516] rounded-2xl shadow-lg p-5 flex items-center gap-5">
-              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center">
-                <Trash2 className="w-8 h-8 text-[#5A8516]" />
-              </div>
-
-              <div>
-                <h4 className="text-white font-bold text-lg">
-                  Buang Sampah pada Tempatnya
-                </h4>
-
-                <p className="text-white/90 text-sm">
-                  Pisahkan sampah organik dan anorganik
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-[#5A8516] rounded-2xl shadow-lg p-5 flex items-center gap-5">
-              <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center">
-                <Trees className="w-8 h-8 text-[#5A8516]" />
-              </div>
-
-              <div>
-                <h4 className="text-white font-bold text-lg">
-                  Menanam Pohon atau Tanaman
-                </h4>
-
-                <p className="text-white/90 text-sm">
-                  Membantu menjaga kualitas udara
-                </p>
-              </div>
-            </div>
-
-          </div>
         </section>
 
         {/* ===================================== */}
@@ -399,13 +353,21 @@ export default function BerandaPage() {
 
                     {/* IMAGE */}
                     <div className="relative w-full h-[230px] rounded-xl overflow-hidden">
-                      <Image
-                        src={item.gambar || "/image/laporan.png"}
-                        alt="Laporan"
-                        fill
-                        unoptimized
-                        className="object-cover"
-                      />
+                        {item.gambar ? (
+                          <img
+                            src={`http://localhost:5000/uploads/${item.gambar}`}
+                            alt="Laporan"
+                            className="absolute inset-0 w-full h-full object-cover"
+                          />
+                        ) : (
+                          <Image
+                            src="/image/laporan.png"
+                            alt="Laporan"
+                            fill
+                            unoptimized
+                            className="object-cover"
+                          />
+                        )}
                     </div>
 
                     {/* CONTENT */}

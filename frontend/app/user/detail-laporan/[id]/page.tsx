@@ -17,6 +17,7 @@ import {
   Trash2,
   AlertCircle,
 } from "lucide-react";
+import { getSession, useSession } from "next-auth/react";
 
 export default function DetailLaporanPage() {
   const params = useParams();
@@ -36,11 +37,14 @@ export default function DetailLaporanPage() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
+  const { data: session } = useSession();
 
-  const user =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("user") || "{}")
-      : {};
+
+  const user = {
+    id: session?.user?.id,
+    username: session?.user?.name,
+    profile: session?.user?.image,
+  };
 
   // =====================================
   // GET DETAIL LAPORAN
@@ -168,12 +172,12 @@ export default function DetailLaporanPage() {
     try {
       setLoadingLike(true);
 
-      const token = localStorage.getItem("token");
+      const session = await getSession();
+
+      const token = session?.accessToken;
 
       if (!token) {
-        setMessage(
-          "Silahkan login terlebih dahulu"
-        );
+        setMessage("Silahkan login terlebih dahulu");
         setMessageType("error");
         return;
       }
@@ -230,15 +234,13 @@ export default function DetailLaporanPage() {
     }
 
     try {
-      const token = localStorage.getItem("token");
+      const session = await getSession();
+
+      const token = session?.accessToken;
 
       if (!token) {
-        setMessage(
-          "Silahkan login terlebih dahulu"
-        );
-
+        setMessage("Silahkan login terlebih dahulu");
         setMessageType("error");
-
         return;
       }
 
@@ -304,15 +306,13 @@ export default function DetailLaporanPage() {
     try {
       setDeletingCommentId(komentarId);
 
-      const token = localStorage.getItem("token");
+      const session = await getSession();
+
+      const token = session?.accessToken;
 
       if (!token) {
-        setMessage(
-          "Silahkan login terlebih dahulu"
-        );
-
+        setMessage("Silahkan login terlebih dahulu");
         setMessageType("error");
-
         return;
       }
 
@@ -438,16 +438,21 @@ export default function DetailLaporanPage() {
             {/* IMAGE */}
             <div className="relative mt-6 w-full h-[500px] rounded-2xl overflow-hidden">
 
-              <Image
-                src={
-                  laporan.gambar ||
-                  "/image/laporan.png"
-                }
-                alt="Laporan"
-                fill
-                unoptimized
-                className="object-cover"
-              />
+              {laporan.gambar ? (
+                <img
+                  src={`http://localhost:5000/uploads/${laporan.gambar}`}
+                  alt="Laporan"
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+              ) : (
+                <Image
+                  src="/image/laporan.png"
+                  alt="Laporan"
+                  fill
+                  unoptimized
+                  className="object-cover"
+                />
+              )}
 
             </div>
 
@@ -673,16 +678,21 @@ export default function DetailLaporanPage() {
 
                   <div className="flex gap-4 mb-5 hover:bg-[#F5F5F5] p-2 rounded-xl transition">
 
-                    <Image
-                      src={
-                        item.gambar ||
-                        "/image/laporan.png"
-                      }
-                      alt=""
-                      width={90}
-                      height={90}
-                      className="rounded-xl object-cover"
-                    />
+                    {item.gambar ? (
+                      <img
+                        src={`http://localhost:5000/uploads/${item.gambar}`}
+                        alt=""
+                        className="w-[90px] h-[90px] rounded-xl object-cover"
+                      />
+                    ) : (
+                      <Image
+                        src="/image/laporan.png"
+                        alt=""
+                        width={90}
+                        height={90}
+                        className="rounded-xl object-cover"
+                      />
+                    )}
 
                     <div>
                       <h3 className="font-bold">

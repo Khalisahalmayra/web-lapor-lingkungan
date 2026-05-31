@@ -7,6 +7,8 @@ const laporanRoutes = require("./routes/laporanRoutes");
 const kategoriRoutes = require("./routes/kategoriRoutes");
 const komentarRoutes = require("./routes/komentarRoutes");
 const userRoutes = require("./routes/userRoutes");
+const upload = require("./middleware/upload");
+const path = require("path");
 
 const app = express();
 
@@ -25,6 +27,8 @@ app.use("/api/laporan", laporanRoutes);
 app.use("/api/kategori", kategoriRoutes);
 app.use("/api/komentar", komentarRoutes);
 app.use("/api/users", userRoutes);
+app.use("/uploads",express.static("uploads")
+);
 
 const PORT = process.env.PORT || 5000;
 

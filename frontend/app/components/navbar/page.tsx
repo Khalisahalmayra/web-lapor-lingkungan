@@ -15,6 +15,9 @@ import {
  EyeOff,
   CheckCircle,
 } from "lucide-react";
+import { getSession, signOut } from "next-auth/react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -73,48 +76,53 @@ export default function Navbar() {
   // =========================
   const [profileImage, setProfileImage] =
     useState("");
+  const [profileFile, setProfileFile] =
+    useState<File | null>(null);
 
   // =========================
   // GET USER
   // =========================
   useEffect(() => {
+    async function getDataUser() {
+      const session = await getSession();
+      console.log("Session data in Navbar:", session);
 
-    const userData =
-      localStorage.getItem("user");
+      if (session && session.user) {
+        setUser(session.user);
+        setUsername(session.user.name || "");
+        setEmail(session.user.email || "");
+        setProfileImage(session.user.image || "");
+      }
 
-    if (
-      !userData ||
-      userData === "undefined"
-    ) {
-      return;
+      if (session?.accessToken) {
+        try {
+          const response = await fetch(
+            `${API_URL}/api/auth/profile`,
+            {
+              headers: {
+                Authorization: `Bearer ${session.accessToken}`,
+              },
+            }
+          );
+
+          if (response.ok) {
+            const profileData = await response.json();
+            setUser(profileData);
+            setUsername(profileData.username || "");
+            setEmail(profileData.email || "");
+            setProfileImage(profileData.profile || profileData.image || "");
+            sessionStorage.setItem(
+              "user",
+              JSON.stringify(profileData)
+            );
+          }
+        } catch (error) {
+          console.error("Failed to load profile:", error);
+        }
+      }
     }
 
-    try {
-
-      const parsedUser =
-        JSON.parse(userData);
-
-      setUser(parsedUser);
-
-      setUsername(
-        parsedUser.username || ""
-      );
-
-      setEmail(
-        parsedUser.email || ""
-      );
-
-      setProfileImage(
-        parsedUser.profile || ""
-      );
-
-    } catch (error) {
-
-      console.log(error);
-
-      localStorage.removeItem("user");
-    }
-
+    getDataUser();
   }, []);
 
   // =========================
@@ -123,7 +131,7 @@ export default function Navbar() {
   useEffect(() => {
 
     const savedNotif =
-      localStorage.getItem(
+      sessionStorage.getItem(
         "notifications"
       );
 
@@ -145,7 +153,7 @@ export default function Navbar() {
       setInterval(() => {
 
         const savedNotif =
-          localStorage.getItem(
+          sessionStorage.getItem(
             "notifications"
           );
 
@@ -218,10 +226,9 @@ export default function Navbar() {
 
     if (!file) return;
 
-    const imageUrl =
-      URL.createObjectURL(file);
-
+    const imageUrl = URL.createObjectURL(file);
     setProfileImage(imageUrl);
+    setProfileFile(file);
   };
 
   // =========================
@@ -230,6 +237,7 @@ export default function Navbar() {
   const handleDeleteFoto = () => {
 
     setProfileImage("");
+    setProfileFile(null);
   };
 
   // =========================
@@ -241,7 +249,7 @@ export default function Navbar() {
       try {
 
         const token =
-          localStorage.getItem("token");
+          (await getSession())?.accessToken;
 
         if (!token) {
 
@@ -256,30 +264,25 @@ export default function Navbar() {
           return;
         }
 
+        const formData = new FormData();
+        formData.append("username", username);
+        formData.append("email", email);
+        formData.append(
+          "password",
+          editPassword ? password : ""
+        );
+        if (profileFile) {
+          formData.append("profile", profileFile);
+        }
+
         const res = await fetch(
-          "http://localhost:5000/api/auth/update-profile",
+          `${API_URL}/api/auth/update-profile`,
           {
             method: "PUT",
-
             headers: {
-              "Content-Type":
-                "application/json",
-
-              Authorization:
-                `Bearer ${token}`,
+              Authorization: `Bearer ${token}`,
             },
-
-            body: JSON.stringify({
-              username,
-              email,
-
-              password:
-                editPassword
-                  ? password
-                  : "",
-
-              profile: profileImage,
-            }),
+            body: formData,
           }
         );
 
@@ -294,13 +297,28 @@ export default function Navbar() {
           );
         }
 
-        // update localStorage
-        localStorage.setItem(
+        // update sessionStorage
+        sessionStorage.setItem(
           "user",
           JSON.stringify(data.user)
         );
 
         setUser(data.user);
+        setUsername(data.user.username || "");
+        setEmail(data.user.email || "");
+        
+        // Build profile image URL
+        let profileUrl = "";
+        if (data.user.profile) {
+          profileUrl = data.user.profile.startsWith('http')
+            ? data.user.profile
+            : `${API_URL}/uploads/${data.user.profile}`;
+        } else if (data.user.image) {
+          profileUrl = data.user.image.startsWith('http')
+            ? data.user.image
+            : `${API_URL}/uploads/${data.user.image}`;
+        }
+        setProfileImage(profileUrl);
 
         // reset password
         setEditPassword(false);
@@ -345,7 +363,7 @@ export default function Navbar() {
 
     setNotifications(updatedNotif);
 
-    localStorage.setItem(
+    sessionStorage.setItem(
       "notifications",
       JSON.stringify(updatedNotif)
     );
@@ -356,8 +374,10 @@ export default function Navbar() {
   // =========================
   const handleLogout = () => {
 
-    localStorage.clear()
-    router.push("/masuk");
+    sessionStorage.clear();
+    signOut({
+      callbackUrl: "/masuk",
+    })
   };
 
   return (
@@ -599,8 +619,11 @@ export default function Navbar() {
                 {profileImage ? (
 
                   <img
-                    src={profileImage}
+                    src={profileImage.startsWith('http') ? profileImage : `${API_URL}/uploads/${profileImage}`}
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = 'none';
+                    }}
                   />
 
                 ) : (
@@ -626,8 +649,11 @@ export default function Navbar() {
                   {profileImage ? (
 
                     <img
-                      src={profileImage}
+                      src={profileImage.startsWith('http') ? profileImage : `${API_URL}/uploads/${profileImage}`}
                       className="w-24 h-24 rounded-full object-cover border-4 border-green-700"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
                     />
 
                   ) : (

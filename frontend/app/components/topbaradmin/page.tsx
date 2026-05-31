@@ -13,6 +13,9 @@ import {
   X,
   Upload,
 } from "lucide-react";
+import { getSession, signOut } from "next-auth/react";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
 export default function TopbarAdmin() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -36,30 +39,51 @@ export default function TopbarAdmin() {
   useEffect(() => {
     const getProfile = async () => {
       try {
-        const token = localStorage.getItem("token");
-        if (!token) return;
+      
+        const response = await getSession();
+        // console.log("Session data:", response);
 
-        const response = await fetch(
-          "http://localhost:5000/api/auth/profile",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+        if (!response || !response.accessToken) {
+          throw new Error("User not authenticated");
+        }
 
-        const data = await response.json();
-
-        if (response.ok) {
+        if (response?.user) {
           setProfileData({
-            username: data.username || "",
-            email: data.email || "",
+            username: response.user.name || "",
+            email: response.user.email || "",
             password: "",
-            role: data.role || "",
-            profile: data.profile || "",
+            role: (response.user as any).role || "",
+            profile: response.user.image || "",
           });
 
-          localStorage.setItem("user", JSON.stringify(data));
+          sessionStorage.setItem(
+            "user",
+            JSON.stringify(response.user)
+          );
+        }
+        if (response?.accessToken) {
+          const profileResponse = await fetch(
+            `${API_URL}/api/auth/profile`,
+            {
+              headers: {
+                Authorization: `Bearer ${response.accessToken}`,
+              },
+            }
+          );
+          if (profileResponse.ok) {
+            const profileInfo = await profileResponse.json();
+            setProfileData({
+              username: profileInfo.username || "",
+              email: profileInfo.email || "",
+              password: "",
+              role: profileInfo.role || "",
+              profile: profileInfo.profile || profileInfo.image || "",
+            });
+            sessionStorage.setItem(
+              "user",
+              JSON.stringify(profileInfo)
+            );
+          }
         }
       } catch (error) {
         console.log(error);
@@ -88,54 +112,72 @@ export default function TopbarAdmin() {
   // =========================
   // UPDATE PROFILE
   // =========================
-  const handleUpdateProfile = async () => {
-    try {
-      setLoading(true);
+      const handleUpdateProfile = async () => {
+        try {
+          setLoading(true);
 
-      const token = localStorage.getItem("token");
+          const session = await getSession();
 
-      const response = await fetch(
-        "http://localhost:5000/api/auth/update-profile",
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            username: profileData.username,
-            email: profileData.email,
-            password: profileData.password,
-            profile: profileData.profile,
-          }),
+          const token = (session as any)?.accessToken;
+
+          console.log("SESSION:", session);
+          console.log("ACCESS TOKEN:", token);
+
+          if (!token) {
+            setMessage("Token tidak ditemukan");
+            return;
+          }
+
+          const response = await fetch(
+            `${API_URL}/api/auth/update-profile`,
+            {
+              method: "PUT",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                username: profileData.username,
+                email: profileData.email,
+                password: profileData.password,
+                profile: profileData.profile,
+              }),
+            }
+          );
+
+          const data = await response.json();
+
+          if (response.ok) {
+            setMessage("Profile berhasil diupdate");
+
+            sessionStorage.setItem(
+              "user",
+              JSON.stringify(data.user)
+            );
+
+            setOpenEditModal(false);
+          } else {
+            setMessage(
+              data.message || "Gagal update profile"
+            );
+          }
+        } catch (error) {
+          console.log(error);
+          setMessage("Terjadi kesalahan server");
+        } finally {
+          setLoading(false);
         }
-      );
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setMessage("Profile berhasil diupdate");
-
-        localStorage.setItem("user", JSON.stringify(data.user));
-
-        setOpenEditModal(false);
-      } else {
-        setMessage(data.message || "Gagal update profile");
-      }
-    } catch (error) {
-      console.log(error);
-      setMessage("Terjadi kesalahan server");
-    } finally {
-      setLoading(false);
-    }
-  };
+      };
 
   // =========================
   // LOGOUT
   // =========================
   const handleLogout = () => {
-    localStorage.clear()
-    window.location.href = "/masuk";
+    sessionStorage.clear();
+    signOut({
+      callbackUrl: "/masuk",
+    });
+    
   };
 
   return (
