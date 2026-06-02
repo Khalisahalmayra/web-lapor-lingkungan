@@ -1,98 +1,241 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import React, { useEffect, useRef } from "react";
+import { router } from "expo-router";
+import {
+  View,
+  Text,
+  StyleSheet,
+  Animated,
+  Image,
+} from "react-native";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+export default function SplashScreen() {
+  const circleTranslateY = useRef(new Animated.Value(-500)).current;
+  const circleScale = useRef(new Animated.Value(0)).current;
 
-export default function HomeScreen() {
+  const logoScale = useRef(new Animated.Value(0)).current;
+  const logoOpacity = useRef(new Animated.Value(0)).current;
+
+  const textTranslateY = useRef(new Animated.Value(40)).current;
+  const textOpacity = useRef(new Animated.Value(0)).current;
+
+  const dot1 = useRef(new Animated.Value(0.3)).current;
+  const dot2 = useRef(new Animated.Value(0.3)).current;
+  const dot3 = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    Animated.sequence([
+      Animated.parallel([
+        Animated.spring(circleTranslateY, {
+          toValue: 0,
+          friction: 7,
+          useNativeDriver: true,
+        }),
+
+        Animated.spring(circleScale, {
+          toValue: 1,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.parallel([
+        Animated.spring(logoScale, {
+          toValue: 1,
+          friction: 4,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(logoOpacity, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+
+      Animated.parallel([
+        Animated.spring(textTranslateY, {
+          toValue: 0,
+          friction: 6,
+          useNativeDriver: true,
+        }),
+
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 700,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => {
+      try {
+        router.replace("/login");
+      } catch (e) {
+        try {
+          router.push("/login");
+        } catch {}
+      }
+    });
+
+    const animateDots = () => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(dot1, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(dot2, {
+              toValue: 0.3,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(dot3, {
+              toValue: 0.3,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]),
+
+          Animated.parallel([
+            Animated.timing(dot1, {
+              toValue: 0.3,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(dot2, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]),
+
+          Animated.parallel([
+            Animated.timing(dot2, {
+              toValue: 0.3,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+            Animated.timing(dot3, {
+              toValue: 1,
+              duration: 300,
+              useNativeDriver: true,
+            }),
+          ]),
+        ])
+      ).start();
+    };
+
+    animateDots();
+  }, []);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <View style={styles.container}>
+      {/* Background Circle */}
+      <Animated.View
+        style={[
+          styles.circle,
+          {
+            transform: [
+              { translateY: circleTranslateY },
+              { scale: circleScale },
+            ],
+          },
+        ]}
+      />
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+      {/* Logo */}
+      <Animated.View
+        style={{
+          opacity: logoOpacity,
+          transform: [{ scale: logoScale }],
+        }}
+      >
+        <Image
+          source={require("../../assets/images/logo.png")}
+          style={styles.logo}
+          resizeMode="contain"
+        />
+      </Animated.View>
+
+      {/* Text */}
+      <Animated.View
+        style={{
+          opacity: textOpacity,
+          transform: [{ translateY: textTranslateY }],
+        }}
+      >
+        <Text style={styles.title}>LAPOR</Text>
+        <Text style={styles.subtitle}>LINGKUNGAN</Text>
+      </Animated.View>
+
+      {/* Loading Dots */}
+      <View style={styles.loadingContainer}>
+        <Animated.View
+          style={[styles.dot, { opacity: dot1 }]}
+        />
+        <Animated.View
+          style={[styles.dot, { opacity: dot2 }]}
+        />
+        <Animated.View
+          style={[styles.dot, { opacity: dot3 }]}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#0B4F26",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+
+  circle: {
+    position: "absolute",
+    top: -120,
+    width: 450,
+    height: 450,
+    borderRadius: 225,
+    backgroundColor: "#cfebd9ff",
+    opacity: 0.15,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+
+  logo: {
+    width: 180,
+    height: 180,
+  },
+
+  title: {
+    marginTop: 20,
+    fontSize: 34,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    textAlign: "center",
+    letterSpacing: 4,
+  },
+
+  subtitle: {
+    fontSize: 20,
+    fontWeight: "600",
+    color: "#D1FAE5",
+    textAlign: "center",
+    letterSpacing: 6,
+    marginTop: 5,
+  },
+
+  loadingContainer: {
+    flexDirection: "row",
+    marginTop: 45,
+  },
+
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#FFFFFF",
+    marginHorizontal: 6,
   },
 });
