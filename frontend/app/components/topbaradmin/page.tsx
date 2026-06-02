@@ -17,6 +17,17 @@ import { getSession, signOut } from "next-auth/react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+const buildProfileUrl = (p: string | null | undefined) => {
+  if (!p) return null;
+  try {
+    return p.startsWith("http") || p.startsWith("blob:") || p.startsWith("data:")
+      ? p
+      : `${API_URL}/uploads/${p}`;
+  } catch {
+    return null;
+  }
+};
+
 export default function TopbarAdmin() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -32,6 +43,7 @@ export default function TopbarAdmin() {
     role: "",
     profile: "",
   });
+  const [profileFile, setProfileFile] = useState<File | null>(null);
 
   // =========================
   // GET PROFILE
@@ -102,6 +114,7 @@ export default function TopbarAdmin() {
     if (file) {
       const imageUrl = URL.createObjectURL(file);
 
+      setProfileFile(file);
       setProfileData({
         ...profileData,
         profile: imageUrl,
@@ -128,39 +141,50 @@ export default function TopbarAdmin() {
             return;
           }
 
-          const response = await fetch(
-            `${API_URL}/api/auth/update-profile`,
-            {
-              method: "PUT",
-              headers: {
-                Authorization: `Bearer ${token}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                username: profileData.username,
-                email: profileData.email,
-                password: profileData.password,
-                profile: profileData.profile,
-              }),
-            }
-          );
+              const formData = new FormData();
+              formData.append('username', profileData.username);
+              formData.append('email', profileData.email);
+              formData.append('password', profileData.password || '');
+              if (profileFile) {
+                formData.append('profile', profileFile);
+              }
 
-          const data = await response.json();
+              const response = await fetch(`${API_URL}/api/auth/update-profile`, {
+                method: 'PUT',
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                },
+                body: formData,
+              });
 
-          if (response.ok) {
-            setMessage("Profile berhasil diupdate");
+              const data = await response.json();
 
-            sessionStorage.setItem(
-              "user",
-              JSON.stringify(data.user)
-            );
+              if (response.ok) {
+              setMessage('Profile berhasil diupdate');
 
-            setOpenEditModal(false);
-          } else {
-            setMessage(
-              data.message || "Gagal update profile"
-            );
-          }
+              sessionStorage.setItem('user', JSON.stringify(data.user));
+
+              // update displayed profile URL
+              let profileUrl = '';
+              if (data.user.profile) {
+                profileUrl = data.user.profile.startsWith('http') ? data.user.profile : `${API_URL}/uploads/${data.user.profile}`;
+              } else if (data.user.image) {
+                profileUrl = data.user.image.startsWith('http') ? data.user.image : `${API_URL}/uploads/${data.user.image}`;
+              }
+              setProfileData({ ...profileData, profile: profileUrl });
+              setProfileFile(null);
+
+              // notify other components in same tab
+              try {
+                if (typeof window !== 'undefined') {
+                  window.dispatchEvent(new CustomEvent('user-updated', { detail: data.user }));
+                }
+              } catch {}
+
+              setOpenEditModal(false);
+            } else {
+                setMessage(data.message || 'Gagal update profile');
+              }
         } catch (error) {
           console.log(error);
           setMessage("Terjadi kesalahan server");

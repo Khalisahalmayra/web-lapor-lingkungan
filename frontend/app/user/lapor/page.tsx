@@ -59,6 +59,8 @@ export default function LaporPage() {
   const [lokasiLoading, setLokasiLoading] =
     useState(false);
 
+  const mapInitRef = useRef(false);
+
   const [errors, setErrors] =
     useState<{
       judul?: string;
@@ -106,9 +108,20 @@ export default function LaporPage() {
   // INIT LEAFLET MAP
   // =====================
   useEffect(() => {
-    if (!mapRef.current || leafletMapRef.current) return;
+    const container = mapRef.current;
+    if (!container || leafletMapRef.current) return;
+
+    let cancelled = false;
+    mapInitRef.current = true;
 
     import("leaflet").then((L) => {
+      if (cancelled || !container) return;
+
+      // If the same container was previously initialized by Leaflet,
+      // clear the marker ID so a fresh map can be mounted safely.
+      if ((container as any)._leaflet_id) {
+        delete (container as any)._leaflet_id;
+      }
       // Fix default icon
       delete (L.Icon.Default.prototype as any)._getIconUrl;
       L.Icon.Default.mergeOptions({
@@ -117,7 +130,7 @@ export default function LaporPage() {
         shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
       });
 
-      const map = L.map(mapRef.current!).setView([-2.5, 118.0], 5);
+      const map = L.map(container).setView([-2.5, 118.0], 5);
 
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         attribution: "© OpenStreetMap contributors",
@@ -168,6 +181,14 @@ export default function LaporPage() {
 
       leafletMapRef.current = map;
     });
+    return () => {
+      cancelled = true;
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+      mapInitRef.current = false;
+    };
   }, []);
 
   // =====================

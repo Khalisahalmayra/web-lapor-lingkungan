@@ -9,6 +9,7 @@ import {
   Clock3,
   FileText,
   LoaderCircle,
+  XCircle,
   MapPin,
 } from "lucide-react";
 
@@ -107,6 +108,14 @@ export default function DashboardAdminPage() {
               {reports.filter(r => r.status === "diproses").length}
             </h2>
             <LoaderCircle className="text-orange-500 mt-4" />
+          </div>
+
+          <div className="bg-white rounded-2xl p-6 shadow-sm border-l-[6px] border-red-500">
+            <p className="text-gray-500 font-medium">DITOLAK</p>
+            <h2 className="text-5xl font-bold mt-4">
+              {reports.filter(r => r.status === "ditolak").length}
+            </h2>
+            <XCircle className="text-red-500 mt-4" />
           </div>
 
           <div className="bg-white rounded-2xl p-6 shadow-sm border-l-[6px] border-green-500">

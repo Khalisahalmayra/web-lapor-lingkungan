@@ -19,6 +19,16 @@ import { getSession, signOut } from "next-auth/react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
 
+const buildProfileUrl = (p: string | null | undefined) => {
+  if (!p) return null;
+  try {
+    return p.startsWith("http") || p.startsWith("blob:") || p.startsWith("data:")
+      ? p
+      : `${API_URL}/uploads/${p}`;
+  } catch {
+    return null;
+  }
+};
 export default function TopbarAdmin() {
   const fileInputRef =
     useRef<HTMLInputElement | null>(null);
@@ -48,6 +58,7 @@ export default function TopbarAdmin() {
       role: "",
       photo: "",
     });
+  const [profileFile, setProfileFile] = useState<File | null>(null);
 
   // =====================================
   // GET PROFILE
@@ -124,16 +135,9 @@ export default function TopbarAdmin() {
     const file = e.target.files?.[0];
 
     if (file) {
-      const reader = new FileReader();
-
-      reader.onloadend = () => {
-        setProfileData((prev) => ({
-          ...prev,
-          photo: reader.result as string,
-        }));
-      };
-
-      reader.readAsDataURL(file);
+      const url = URL.createObjectURL(file);
+      setProfileFile(file);
+      setProfileData((prev) => ({ ...prev, photo: url }));
     }
   };
 
@@ -152,75 +156,61 @@ if (!token) {
   throw new Error("Token tidak ditemukan");
 }
 
-      const response = await fetch(
-        `${API_URL}/api/auth/update-profile`,
-        {
-          method: "PUT",
+      const formData = new FormData();
+      formData.append('username', profileData.username);
+      formData.append('email', profileData.email);
+      formData.append('password', profileData.password || '');
+      if (profileFile) formData.append('profile', profileFile);
 
-          headers: {
-            "Content-Type":
-              "application/json",
-
-            Authorization: `Bearer ${token}`,
-          },
-
-          body: JSON.stringify({
-            username:
-              profileData.username,
-
-            email:
-              profileData.email,
-
-            password:
-              profileData.password,
-
-            profile:
-              profileData.photo,
-          }),
-        }
-      );
+      const response = await fetch(`${API_URL}/api/auth/update-profile`, {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
 
       const data = await response.json();
 
-      if (response.ok) {
-        sessionStorage.setItem(
-          "user",
-          JSON.stringify(data.user)
-        );
+        if (response.ok) {
+        sessionStorage.setItem('user', JSON.stringify(data.user));
+
+        const profileUrl = data.user.profile
+          ? data.user.profile.startsWith('http')
+            ? data.user.profile
+            : `${API_URL}/uploads/${data.user.profile}`
+          : data.user.image
+          ? data.user.image.startsWith('http')
+            ? data.user.image
+            : `${API_URL}/uploads/${data.user.image}`
+          : '';
 
         setProfileData({
-          username:
-            data.user.username || "",
-
-          email:
-            data.user.email || "",
-
-          password: "",
-
-          role:
-            data.user.role || "",
-
-          photo:
-            data.user.profile || "",
+          username: data.user.username || '',
+          email: data.user.email || '',
+          password: '',
+          role: data.user.role || '',
+          photo: profileUrl,
         });
+        setProfileFile(null);
 
-        setMessage(
-          "Profile berhasil diupdate"
-        );
+        // notify other components in same tab
+        try {
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('user-updated', { detail: data.user }));
+          }
+        } catch {}
 
-        setMessageType("success");
+        setMessage('Profile berhasil diupdate');
+        setMessageType('success');
 
         setTimeout(() => {
-          setMessage("");
+          setMessage('');
           setOpenEditModal(false);
         }, 2000);
       } else {
-        setMessage(
-          data.message ||
-            "Gagal update profile"
-        );
-
-        setMessageType("error");
+        setMessage(data.message || 'Gagal update profile');
+        setMessageType('error');
       }
     } catch (error) {
       console.log(error);

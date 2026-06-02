@@ -19,6 +19,17 @@ import {
 } from "lucide-react";
 import { getSession, useSession } from "next-auth/react";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+
+const buildProfileUrl = (p: string | null | undefined) => {
+  if (!p) return null;
+  try {
+    return p.startsWith("http") ? p : `${API_URL}/uploads/${p}`;
+  } catch {
+    return null;
+  }
+};
+
 export default function DetailLaporanPage() {
   const params = useParams();
   const id = params.id;
@@ -40,11 +51,52 @@ export default function DetailLaporanPage() {
   const { data: session } = useSession();
 
 
-  const user = {
-    id: session?.user?.id,
-    username: session?.user?.name,
-    profile: session?.user?.image,
-  };
+  const [currentUser, setCurrentUser] = useState<any>(() => {
+    try {
+      const stored = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
+      if (stored) return JSON.parse(stored);
+    } catch {}
+    return session?.user || null;
+  });
+
+  useEffect(() => {
+    // when session changes, prefer sessionStorage user if present
+    try {
+      const stored = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
+      if (stored) {
+        setCurrentUser(JSON.parse(stored));
+      } else if (session?.user) {
+        setCurrentUser(session.user);
+      }
+    } catch {}
+  }, [session]);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      try {
+        // allow custom event with detail or fallback to sessionStorage
+        const custom = (e as CustomEvent).detail;
+        if (custom) {
+          setCurrentUser(custom);
+          sessionStorage.setItem("user", JSON.stringify(custom));
+          return;
+        }
+      } catch {}
+
+      try {
+        const stored = sessionStorage.getItem("user");
+        if (stored) setCurrentUser(JSON.parse(stored));
+      } catch {}
+    };
+
+    window.addEventListener("user-updated", handler as EventListener);
+    window.addEventListener("storage", handler as EventListener);
+
+    return () => {
+      window.removeEventListener("user-updated", handler as EventListener);
+      window.removeEventListener("storage", handler as EventListener);
+    };
+  }, []);
 
   // =====================================
   // GET DETAIL LAPORAN
@@ -405,9 +457,9 @@ export default function DetailLaporanPage() {
               {/* USER */}
               <div className="mt-6 border rounded-2xl p-4 flex items-center gap-4">
 
-                {laporan.profile ? (
+                {buildProfileUrl(laporan.profile) ? (
                   <Image
-                    src={laporan.profile}
+                    src={buildProfileUrl(laporan.profile) as string}
                     alt="Profile"
                     width={56}
                     height={56}
@@ -536,9 +588,9 @@ export default function DetailLaporanPage() {
               {/* INPUT */}
               <div className="flex gap-5 mt-8">
 
-                {user?.profile ? (
+                {buildProfileUrl(currentUser?.profile) ? (
                   <Image
-                    src={user.profile}
+                    src={buildProfileUrl(currentUser?.profile) as string}
                     alt="Profile"
                     width={56}
                     height={56}
@@ -547,7 +599,7 @@ export default function DetailLaporanPage() {
                   />
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
-                    {user?.username?.charAt(0) ||
+                    {currentUser?.username?.charAt(0) ||
                       "U"}
                   </div>
                 )}
@@ -597,9 +649,9 @@ export default function DetailLaporanPage() {
                   className="flex gap-5 mt-8"
                 >
 
-                  {item.profile ? (
+                  {buildProfileUrl(item.profile) ? (
                     <Image
-                      src={item.profile}
+                      src={buildProfileUrl(item.profile) as string}
                       alt="Profile"
                       width={56}
                       height={56}
@@ -631,7 +683,7 @@ export default function DetailLaporanPage() {
                           )}
                         </p>
 
-                        {user?.id === item.user_id && (
+                        {currentUser?.id === item.user_id && (
                           <button
                             onClick={() => {
                               setSelectedDeleteId(item.id);
