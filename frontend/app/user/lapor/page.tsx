@@ -37,6 +37,7 @@ export default function LaporPage() {
   const [tanggal, setTanggal] = useState("");
   const [lokasi, setLokasi] = useState("");
   const [kategori, setKategori] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const [gambar, setGambar] =
     useState<File | null>(null);
@@ -77,6 +78,7 @@ export default function LaporPage() {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
+  const customIconRef = useRef<any>(null);
 
   // =====================
   // FETCH KATEGORI
@@ -142,6 +144,7 @@ export default function LaporPage() {
         html: `<div style="width:28px;height:28px;background:#0B6B2B;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.4);"></div>`,
         iconAnchor: [14, 28],
       });
+      customIconRef.current = customIcon;
 
       map.on("click", async (e: L.LeafletMouseEvent) => {
         const { lat, lng } = e.latlng;
@@ -170,6 +173,7 @@ export default function LaporPage() {
             parts.length > 0 ? parts.join(", ") : data.display_name;
 
           setLokasi(locationName);
+          setSearchQuery(locationName);
           setErrors((prev) => ({ ...prev, lokasi: "" }));
 
         } catch {
@@ -212,6 +216,86 @@ export default function LaporPage() {
   const handleRemoveImage = () => {
     setGambar(null);
     setPreview("");
+  };
+
+  const handleSearchLocation = async () => {
+    const query = searchQuery.trim();
+    if (!query) return;
+
+    setMessage("");
+    setLokasiLoading(true);
+    setErrors((prev) => ({ ...prev, lokasi: "" }));
+
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+          query
+        )}&format=json&limit=1&accept-language=id`
+      );
+      if (!res.ok) {
+        throw new Error("Gagal mencari lokasi");
+      }
+
+      const results = await res.json();
+      if (!results || results.length === 0) {
+        setMessage("Lokasi tidak ditemukan. Coba kata kunci lain.");
+        return;
+      }
+
+      const place = results[0];
+      const lat = parseFloat(place.lat);
+      const lon = parseFloat(place.lon);
+      const locationName = place.display_name;
+
+      setLokasi(locationName);
+      if (leafletMapRef.current) {
+        leafletMapRef.current.setView([lat, lon], 16);
+        if (markerRef.current) {
+          leafletMapRef.current.removeLayer(markerRef.current);
+        }
+        const L = await import("leaflet");
+        markerRef.current = L.marker([lat, lon], {
+          icon: customIconRef.current || undefined,
+        }).addTo(leafletMapRef.current);
+        setSearchQuery(locationName);
+      }
+    } catch (err: any) {
+      console.log("SEARCH LOCATION ERROR:", err);
+      setMessage(err.message || "Terjadi kesalahan saat mencari lokasi.");
+    } finally {
+      setLokasiLoading(false);
+    }
+  };
+
+  const handleSearchSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+    await handleSearchLocation();
+  };
+
+  // Prevent background from shifting on mobile when input is focused
+  const lockBodyScrollOnFocus = () => {
+    try {
+      const scrollY = window.scrollY || document.documentElement.scrollTop;
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.setAttribute("data-scroll-y", String(scrollY));
+    } catch (e) {
+      // ignore in non-browser environments
+    }
+  };
+
+  const unlockBodyScrollOnBlur = () => {
+    try {
+      const stored = document.body.getAttribute("data-scroll-y") || "0";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      window.scrollTo(0, parseInt(stored || "0", 10));
+      document.body.removeAttribute("data-scroll-y");
+    } catch (e) {
+      // ignore
+    }
   };
 
   // =====================
@@ -649,6 +733,27 @@ export default function LaporPage() {
                 <label className="block text-white font-semibold text-lg mb-3">
                   Lokasi Kejadian
                 </label>
+
+                <div className="mb-4">
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onFocus={lockBodyScrollOnFocus}
+                      onBlur={unlockBodyScrollOnBlur}
+                      placeholder="Cari lokasi dengan mengetik alamat atau nama daerah"
+                      className="w-full rounded-lg border border-green-300 bg-white/10 px-4 py-3 text-white outline-none placeholder:text-white/40"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchLocation}
+                      className="rounded-lg bg-white px-5 py-3 text-black font-semibold transition hover:bg-gray-100"
+                    >
+                      Cari
+                    </button>
+                  </div>
+                </div>
 
                 {/* Tampilan nama lokasi terpilih */}
                 <div className={`flex items-center gap-3 border rounded-lg px-5 py-4 mb-3 bg-transparent transition min-h-[56px] ${

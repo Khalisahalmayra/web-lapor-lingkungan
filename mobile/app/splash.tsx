@@ -68,10 +68,10 @@ export default function SplashScreen() {
       ]),
     ]).start(() => {
       try {
-        router.replace("/login");
+        router.replace("/(auth)/login");
       } catch (e) {
         try {
-          router.push("/login");
+          router.push("/(auth)/login");
         } catch {}
       }
     });
@@ -152,7 +152,7 @@ export default function SplashScreen() {
         }}
       >
         <Image
-          source={require("../../assets/images/logo.png")}
+          source={require("../assets/images/logo.png")}
           style={styles.logo}
           resizeMode="contain"
         />
