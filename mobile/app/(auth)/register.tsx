@@ -25,11 +25,11 @@ export default function RegisterScreen() {
   const [loading, setLoading] = useState(false);
 
   // Ganti nilai LOCAL_API_HOST sesuai IP komputer yang menjalankan backend
-  const LOCAL_API_HOST = "192.168.1.7"; // <-- ganti dengan IP PC/Laptop kamu
+  const LOCAL_API_HOST = "192.168.1.10"; // <-- ganti dengan IP PC/Laptop kamu
 
   const getApiBaseUrl = () => {
     if (Platform.OS === "android") {
-      return "http://192.168.1.7:5000";
+      return "http://192.168.1.10:5000";
     }
     return `http://${LOCAL_API_HOST}:5000`;
   };

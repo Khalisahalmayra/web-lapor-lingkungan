@@ -31,6 +31,16 @@ export default function RootLayout() {
         />
 
         <Stack.Screen
+          name="(tabs)"
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
+          name="detail-laporan/[id]"
+          options={{ headerShown: false }}
+        />
+
+        <Stack.Screen
           name="modal"
           options={{
             presentation: "modal",

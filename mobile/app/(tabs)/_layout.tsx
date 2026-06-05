@@ -1,38 +1,17 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
-
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+import { Tabs } from "expo-router";
+import BottomTabBar from "@/components/BottomTabBar";
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarStyle: {
-          display: "none",
-        },
+        headerShown: false,
       }}
+      tabBar={() => <BottomTabBar />}
     >
-      <Tabs.Screen
-        name="index"
-        options={{
-          headerShown: false,
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          headerShown: false,
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+      <Tabs.Screen name="beranda" />
+      <Tabs.Screen name="laporan" />
+      <Tabs.Screen name="profile" />
     </Tabs>
   );
 }
