@@ -7,6 +7,7 @@ const {
   updateUser,
   deleteUser,
   createUser,
+  getAllUsersRoleUser
 } = require("../controller/userController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -20,6 +21,16 @@ router.get(
   authMiddleware,
   roleMiddleware(["Superadmin"]),
   getAllUsers
+);
+
+// ============================
+// GET ALL USER ROLE USER
+// ============================
+router.get(
+  "/role-user",
+  authMiddleware,
+  roleMiddleware(["Superadmin"]),
+  getAllUsersRoleUser
 );
 
 // ============================

@@ -68,10 +68,10 @@ export default function SplashScreen() {
       ]),
     ]).start(() => {
       try {
-        router.replace("/(auth)/login");
+        router.replace("/onboarding");
       } catch (e) {
         try {
-          router.push("/(auth)/login");
+          router.push("/onboarding");
         } catch {}
       }
     });

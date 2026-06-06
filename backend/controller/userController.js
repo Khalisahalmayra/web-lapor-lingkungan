@@ -26,6 +26,31 @@ const getAllUsers = async (req, res) => {
 };
 
 // ============================
+// GET ALL USER (ROLE USER)
+// ============================
+const getAllUsersRoleUser = async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT
+        id,
+        username,
+        email,
+        role,
+        profile,
+        created_at
+      FROM users
+      WHERE role = 'user'
+      ORDER BY id DESC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// ============================
 // GET USER BY ID
 // ============================
 const getUserById = async (req, res) => {
@@ -177,6 +202,7 @@ const deleteUser = async (req, res) => {
 };
 
 module.exports = {
+  getAllUsersRoleUser,
   getAllUsers,
   getUserById,
   updateUser,
