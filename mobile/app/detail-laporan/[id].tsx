@@ -4,6 +4,7 @@ import {
   AlertCircle,
   ArrowLeft,
   CalendarDays,
+  ChevronRight,
   MapPin,
   MessageCircle,
   Phone,
@@ -11,11 +12,13 @@ import {
   Share2,
   ThumbsUp,
   Trash2,
+  Users,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -23,6 +26,7 @@ import {
   RefreshControl,
   ScrollView,
   Share,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
@@ -57,6 +61,20 @@ const formatDate = (date?: string) => {
   });
 };
 
+// Status badge color helper
+const getStatusStyle = (status?: string) => {
+  switch (status?.toLowerCase()) {
+    case "selesai":
+      return { bg: "#D1FAE5", text: "#065F46" };
+    case "diproses":
+      return { bg: "#FEF3C7", text: "#92400E" };
+    case "ditolak":
+      return { bg: "#FEE2E2", text: "#991B1B" };
+    default:
+      return { bg: "#DBEAFE", text: "#1E40AF" };
+  }
+};
+
 export default function DetailLaporanScreen() {
   const params = useLocalSearchParams<{ id?: string }>();
   const laporanId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -72,8 +90,21 @@ export default function DetailLaporanScreen() {
   const [sendingComment, setSendingComment] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
+  const [imageError, setImageError] = useState(false);
+
+  const fadeAnim = useMemo(() => new Animated.Value(0), []);
 
   const gambarUrl = useMemo(() => buildUploadUrl(laporan?.gambar), [laporan?.gambar]);
+
+  useEffect(() => {
+    if (!loading && laporan) {
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [loading, laporan]);
 
   const loadCurrentUser = async () => {
     try {
@@ -92,10 +123,8 @@ export default function DetailLaporanScreen() {
 
   const fetchDetail = useCallback(async () => {
     if (!laporanId) return;
-
     const detail = await getLaporanDetail(laporanId);
     setLaporan(detail);
-
     const semuaLaporan = await getAllLaporan();
     const filtered = semuaLaporan.filter(
       (item: any) =>
@@ -108,19 +137,14 @@ export default function DetailLaporanScreen() {
     try {
       await Promise.all([fetchDetail(), fetchKomentar(), loadCurrentUser()]);
     } catch (error) {
-      Alert.alert(
-        "Gagal",
-        error instanceof Error ? error.message : "Tidak dapat memuat laporan"
-      );
+      Alert.alert("Gagal", error instanceof Error ? error.message : "Tidak dapat memuat laporan");
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [fetchDetail, fetchKomentar]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  useEffect(() => { loadData(); }, [loadData]);
 
   const getToken = async () => {
     const token = await AsyncStorage.getItem("token");
@@ -131,106 +155,68 @@ export default function DetailLaporanScreen() {
     return token;
   };
 
-  const handleRefresh = () => {
-    setRefreshing(true);
-    loadData();
-  };
+  const handleRefresh = () => { setRefreshing(true); loadData(); };
 
   const handleShare = async () => {
     if (!laporan) return;
     try {
-      await Share.share({
-        title: laporan.judul_laporan,
-        message: `${laporan.judul_laporan}\n\n${laporan.isi_laporan}`,
-      });
-    } catch (error) {
-      console.log(error);
-    }
+      await Share.share({ title: laporan.judul_laporan, message: `${laporan.judul_laporan}\n\n${laporan.isi_laporan}` });
+    } catch (error) { console.log(error); }
   };
 
   const handleLike = async () => {
     const token = await getToken();
     if (!token || !laporanId) return;
-
     try {
       setLoadingLike(true);
       const data = await toggleLikeLaporan(laporanId, token);
-      setLaporan((prev: any) => ({
-        ...prev,
-        total_like: Math.max(
-          0,
-          (prev.total_like || 0) + (data.liked ? 1 : -1)
-        ),
-      }));
+      setLaporan((prev: any) => ({ ...prev, total_like: Math.max(0, (prev.total_like || 0) + (data.liked ? 1 : -1)) }));
       Alert.alert("Berhasil", data.message || "Dukungan diperbarui");
     } catch (error) {
-      Alert.alert(
-        "Gagal",
-        error instanceof Error ? error.message : "Gagal mendukung laporan"
-      );
-    } finally {
-      setLoadingLike(false);
-    }
+      Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal mendukung laporan");
+    } finally { setLoadingLike(false); }
   };
 
   const handleKirimKomentar = async () => {
-    if (!isiKomentar.trim()) {
-      Alert.alert("Peringatan", "Komentar tidak boleh kosong");
-      return;
-    }
-
+    if (!isiKomentar.trim()) { Alert.alert("Peringatan", "Komentar tidak boleh kosong"); return; }
     const token = await getToken();
     if (!token || !laporanId) return;
-
     try {
       setSendingComment(true);
       await createKomentar(laporanId, isiKomentar.trim(), token);
       await fetchKomentar();
-      setLaporan((prev: any) => ({
-        ...prev,
-        total_komen: (prev.total_komen || 0) + 1,
-      }));
+      setLaporan((prev: any) => ({ ...prev, total_komen: (prev.total_komen || 0) + 1 }));
       setIsiKomentar("");
       Alert.alert("Berhasil", "Komentar berhasil dikirim");
     } catch (error) {
-      Alert.alert(
-        "Gagal",
-        error instanceof Error ? error.message : "Gagal mengirim komentar"
-      );
-    } finally {
-      setSendingComment(false);
-    }
+      Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal mengirim komentar");
+    } finally { setSendingComment(false); }
   };
 
   const handleDeleteKomentar = async () => {
     const token = await getToken();
     if (!token || !selectedDeleteId) return;
-
     try {
       setDeletingCommentId(selectedDeleteId);
       await deleteKomentar(selectedDeleteId, token);
       await fetchKomentar();
-      setLaporan((prev: any) => ({
-        ...prev,
-        total_komen: Math.max(0, (prev.total_komen || 0) - 1),
-      }));
+      setLaporan((prev: any) => ({ ...prev, total_komen: Math.max(0, (prev.total_komen || 0) - 1) }));
       setSelectedDeleteId(null);
       Alert.alert("Berhasil", "Komentar berhasil dihapus");
     } catch (error) {
-      Alert.alert(
-        "Gagal",
-        error instanceof Error ? error.message : "Gagal menghapus komentar"
-      );
-    } finally {
-      setDeletingCommentId(null);
-    }
+      Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal menghapus komentar");
+    } finally { setDeletingCommentId(null); }
   };
 
   if (loading) {
     return (
       <View style={styles.loadingPage}>
-        <ActivityIndicator size="large" color="#0B6B2B" />
-        <Text style={styles.loadingText}>Memuat laporan...</Text>
+        <StatusBar barStyle="dark-content" backgroundColor="#F7F9F7" />
+        <View style={styles.loadingSpinner}>
+          <ActivityIndicator size="large" color="#0B6B2B" />
+        </View>
+        <Text style={styles.loadingTitle}>Memuat laporan</Text>
+        <Text style={styles.loadingSubtitle}>Mohon tunggu sebentar...</Text>
       </View>
     );
   }
@@ -238,227 +224,299 @@ export default function DetailLaporanScreen() {
   if (!laporan) {
     return (
       <View style={styles.loadingPage}>
+        <View style={styles.notFoundIcon}>
+          <AlertCircle size={40} color="#0B6B2B" />
+        </View>
         <Text style={styles.emptyTitle}>Laporan tidak ditemukan</Text>
+        <Text style={styles.emptySubtitle}>Laporan mungkin telah dihapus atau tidak tersedia</Text>
         <TouchableOpacity style={styles.primaryButton} onPress={() => router.back()}>
+          <ArrowLeft size={16} color="#fff" />
           <Text style={styles.primaryButtonText}>Kembali</Text>
         </TouchableOpacity>
       </View>
     );
   }
 
+  const statusStyle = getStatusStyle(laporan.status);
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
+    <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+
+      {/* Top Navigation */}
+      <View style={styles.topBar}>
+        <TouchableOpacity style={styles.navButton} onPress={() => router.back()}>
+          <ArrowLeft size={20} color="#1A1A1A" />
+        </TouchableOpacity>
+        <Text style={styles.topBarTitle}>Detail Laporan</Text>
+        <TouchableOpacity style={styles.navButton} onPress={handleShare}>
+          <Share2 size={18} color="#1A1A1A" />
+        </TouchableOpacity>
+      </View>
+
       <ScrollView
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={["#0B6B2B"]}
-            tintColor="#0B6B2B"
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} colors={["#0B6B2B"]} tintColor="#0B6B2B" />
         }
       >
-        <View style={styles.topBar}>
-          <TouchableOpacity style={styles.iconButton} onPress={() => router.back()}>
-            <ArrowLeft size={22} color="#111" />
-          </TouchableOpacity>
-          <Text style={styles.topBarTitle}>Detail Laporan</Text>
-          <TouchableOpacity style={styles.iconButton} onPress={handleShare}>
-            <Share2 size={20} color="#111" />
-          </TouchableOpacity>
-        </View>
+        <Animated.View style={{ opacity: fadeAnim }}>
 
-        <View style={styles.headerCard}>
-          <View style={styles.headerMetaRow}>
-            <View style={styles.categoryBadge}>
-              <Text style={styles.categoryBadgeText}>{laporan.category_name}</Text>
-            </View>
-            <View style={styles.dateRow}>
-              <CalendarDays size={14} color="#666" />
-              <Text style={styles.dateText}>{formatDate(laporan.created_at)}</Text>
-            </View>
-          </View>
-
-          <Text style={styles.title}>{laporan.judul_laporan}</Text>
-
-          <View style={styles.reporterCard}>
-            <Avatar profile={laporan.profile} name={laporan.username} size={54} />
-            <View>
-              <Text style={styles.reporterLabel}>Dilaporkan Oleh</Text>
-              <Text style={styles.reporterName}>{laporan.username || "Pengguna"}</Text>
-            </View>
-          </View>
-
-          <View style={styles.locationRow}>
-            <MapPin size={18} color="#0B6B2B" />
-            <Text style={styles.locationText}>{laporan.lokasi_kejadian}</Text>
-          </View>
-        </View>
-
-        <View style={styles.imageFrame}>
-          {gambarUrl ? (
-            <Image source={{ uri: gambarUrl }} style={styles.mainImage} />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Text style={styles.placeholderText}>Tidak ada gambar</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.descriptionSection}>
-          <View style={styles.descriptionHeader}>
-            <View style={styles.whiteIconCircle}>
-              <MessageCircle size={20} color="#005F18" />
-            </View>
-            <Text style={styles.descriptionTitle}>Detail Deskripsi Laporan</Text>
-          </View>
-
-          <View style={styles.descriptionBox}>
-            <Text style={styles.descriptionText}>{laporan.isi_laporan}</Text>
-          </View>
-
-          <View style={styles.actionRow}>
-            <TouchableOpacity
-              style={[styles.actionButton, loadingLike && styles.disabledButton]}
-              onPress={handleLike}
-              disabled={loadingLike}
-            >
-              {loadingLike ? (
-                <ActivityIndicator color="#111" />
-              ) : (
-                <ThumbsUp size={18} color="#111" />
-              )}
-              <Text style={styles.actionButtonText}>
-                Dukung ({laporan.total_like || 0})
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
-              <Share2 size={18} color="#111" />
-              <Text style={styles.actionButtonText}>Bagikan</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.commentSection}>
-          <Text style={styles.sectionTitle}>Komentar ({laporan.total_komen || 0})</Text>
-
-          <View style={styles.commentInputRow}>
-            <Avatar
-              profile={currentUser?.profile}
-              name={currentUser?.username}
-              size={48}
-            />
-            <View style={styles.inputWrap}>
-              <TextInput
-                value={isiKomentar}
-                onChangeText={setIsiKomentar}
-                placeholder="Tulis komentar..."
-                placeholderTextColor="#999"
-                multiline
-                style={styles.commentInput}
+          {/* Hero Image */}
+          <View style={styles.heroImageContainer}>
+            {gambarUrl && !imageError ? (
+              <Image
+                source={{ uri: gambarUrl }}
+                style={styles.heroImage}
+                onError={() => setImageError(true)}
               />
+            ) : (
+              <View style={styles.heroImagePlaceholder}>
+                <View style={styles.placeholderIconBg}>
+                  <MessageCircle size={36} color="#0B6B2B" />
+                </View>
+                <Text style={styles.placeholderLabel}>Tidak ada gambar</Text>
+              </View>
+            )}
+          </View>
+
+          {/* Main Info Card */}
+          <View style={styles.mainCard}>
+            <View style={styles.mainBadgeRow}>
+  <View style={styles.categoryPill}>
+    <Text style={styles.categoryPillText}>
+      {laporan.category_name}
+    </Text>
+  </View>
+
+  {laporan.status && (
+    <View
+      style={[
+        styles.statusPill,
+        { backgroundColor: statusStyle.bg },
+      ]}
+    >
+      <Text
+        style={[
+          styles.statusPillText,
+          { color: statusStyle.text },
+        ]}
+      >
+        {laporan.status}
+      </Text>
+    </View>
+  )}
+</View>
+            {/* Meta row */}
+            <View style={styles.metaRow}>
+              <View style={styles.metaItem}>
+                <CalendarDays size={13} color="#6B7280" />
+                <Text style={styles.metaText}>{formatDate(laporan.created_at)}</Text>
+              </View>
+              <View style={styles.metaDivider} />
+              <View style={styles.metaItem}>
+                <ThumbsUp size={13} color="#6B7280" />
+                <Text style={styles.metaText}>{laporan.total_like || 0} dukungan</Text>
+              </View>
+              <View style={styles.metaDivider} />
+              <View style={styles.metaItem}>
+                <MessageCircle size={13} color="#6B7280" />
+                <Text style={styles.metaText}>{laporan.total_komen || 0} komentar</Text>
+              </View>
+            </View>
+
+            {/* Title */}
+            <Text style={styles.reportTitle}>{laporan.judul_laporan}</Text>
+
+            {/* Location */}
+            <View style={styles.locationChip}>
+              <MapPin size={15} color="#0B6B2B" />
+              <Text style={styles.locationChipText}>{laporan.lokasi_kejadian}</Text>
+            </View>
+
+            {/* Divider */}
+            <View style={styles.cardDivider} />
+
+            {/* Reporter */}
+            <View style={styles.reporterRow}>
+              <Avatar profile={laporan.profile} name={laporan.username} size={46} />
+              <View style={styles.reporterInfo}>
+                <Text style={styles.reporterLabel}>Dilaporkan oleh</Text>
+                <Text style={styles.reporterName}>{laporan.username || "Pengguna"}</Text>
+              </View>
+            </View>
+
+            {/* Action Buttons */}
+            <View style={styles.actionRow}>
               <TouchableOpacity
-                style={[styles.sendButton, sendingComment && styles.disabledButton]}
-                onPress={handleKirimKomentar}
-                disabled={sendingComment}
+                style={[styles.likeButton, loadingLike && styles.disabledButton]}
+                onPress={handleLike}
+                disabled={loadingLike}
+                activeOpacity={0.75}
               >
-                {sendingComment ? (
-                  <ActivityIndicator color="#fff" />
+                {loadingLike ? (
+                  <ActivityIndicator size="small" color="#0B6B2B" />
                 ) : (
-                  <>
-                    <Send size={18} color="#fff" />
-                    <Text style={styles.sendButtonText}>Kirim</Text>
-                  </>
+                  <ThumbsUp size={17} color="#0B6B2B" />
                 )}
+                <Text style={styles.likeButtonText}>
+                  Dukung {laporan.total_like > 0 ? `(${laporan.total_like})` : ""}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.shareButton} onPress={handleShare} activeOpacity={0.75}>
+                <Share2 size={17} color="#374151" />
+                <Text style={styles.shareButtonText}>Bagikan</Text>
               </TouchableOpacity>
             </View>
           </View>
 
-          {komentar.length === 0 ? (
-            <View style={styles.emptyCommentBox}>
-              <Text style={styles.emptyText}>Belum ada komentar</Text>
+          {/* Description Section */}
+          <View style={styles.descSection}>
+            <View style={styles.descHeader}>
+              <View style={styles.descIconWrap}>
+                <MessageCircle size={18} color="#fff" />
+              </View>
+              <Text style={styles.descHeaderTitle}>Deskripsi Laporan</Text>
             </View>
-          ) : (
-            komentar.map((item) => (
-              <View key={item.id} style={styles.commentItem}>
-                <Avatar profile={item.profile} name={item.username} size={48} />
-                <View style={styles.commentBubble}>
-                  <View style={styles.commentHeader}>
-                    <View style={styles.commentNameWrap}>
-                      <Text style={styles.commentName}>{item.username}</Text>
-                      <Text style={styles.commentDate}>{formatDate(item.created_at)}</Text>
+            <Text style={styles.descBody}>{laporan.isi_laporan}</Text>
+          </View>
+
+          {/* Comments Section */}
+          <View style={styles.sectionCard}>
+            <View style={styles.sectionHeaderRow}>
+              <Text style={styles.sectionTitle}>Komentar</Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>{laporan.total_komen || 0}</Text>
+              </View>
+            </View>
+
+            {/* Comment Input */}
+            <View style={styles.commentInputContainer}>
+              <Avatar profile={currentUser?.profile} name={currentUser?.username} size={40} />
+              <View style={styles.inputBox}>
+                <TextInput
+                  value={isiKomentar}
+                  onChangeText={setIsiKomentar}
+                  placeholder="Tulis komentar Anda..."
+                  placeholderTextColor="#A0AEC0"
+                  multiline
+                  style={styles.commentInput}
+                />
+                <TouchableOpacity
+                  style={[styles.sendBtn, sendingComment && styles.disabledButton]}
+                  onPress={handleKirimKomentar}
+                  disabled={sendingComment}
+                  activeOpacity={0.8}
+                >
+                  {sendingComment ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Send size={15} color="#fff" />
+                      <Text style={styles.sendBtnText}>Kirim</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Comment List */}
+            {komentar.length === 0 ? (
+              <View style={styles.emptyComments}>
+                <Users size={28} color="#CBD5E0" />
+                <Text style={styles.emptyCommentsText}>Belum ada komentar</Text>
+                <Text style={styles.emptyCommentsSubtext}>Jadilah yang pertama berkomentar</Text>
+              </View>
+            ) : (
+              komentar.map((item, index) => (
+                <View key={item.id} style={[styles.commentItem, index === 0 && styles.firstCommentItem]}>
+                  <Avatar profile={item.profile} name={item.username} size={40} />
+                  <View style={styles.commentContent}>
+                    <View style={styles.commentTopRow}>
+                      <View>
+                        <Text style={styles.commenterName}>{item.username}</Text>
+                        <Text style={styles.commentDate}>{formatDate(item.created_at)}</Text>
+                      </View>
+                      {currentUser?.id === item.user_id && (
+                        <TouchableOpacity
+                          style={styles.deleteBtn}
+                          onPress={() => setSelectedDeleteId(item.id)}
+                        >
+                          <Trash2 size={14} color="#EF4444" />
+                        </TouchableOpacity>
+                      )}
                     </View>
-                    {currentUser?.id === item.user_id && (
-                      <TouchableOpacity
-                        style={styles.deleteButton}
-                        onPress={() => setSelectedDeleteId(item.id)}
-                      >
-                        <Trash2 size={17} color="#D32F2F" />
-                      </TouchableOpacity>
-                    )}
+                    <Text style={styles.commentText}>{item.isi_komentar}</Text>
                   </View>
-                  <Text style={styles.commentText}>{item.isi_komentar}</Text>
+                </View>
+              ))
+            )}
+          </View>
+
+          {/* Related Reports */}
+          {laporanSerupa.length > 0 && (
+            <View style={styles.sectionCard}>
+              <View style={styles.sectionHeaderRow}>
+                <Text style={styles.sectionTitle}>Laporan Serupa</Text>
+                <View style={styles.countBadge}>
+                  <Text style={styles.countBadgeText}>{laporanSerupa.length}</Text>
                 </View>
               </View>
-            ))
+
+              {laporanSerupa.map((item) => {
+                const imgUrl = buildUploadUrl(item.gambar);
+                return (
+                  <TouchableOpacity
+                    key={item.id}
+                    style={styles.relatedCard}
+                    onPress={() => router.push(`/detail-laporan/${item.id}`)}
+                    activeOpacity={0.75}
+                  >
+                    {imgUrl ? (
+                      <Image source={{ uri: imgUrl }} style={styles.relatedImg} />
+                    ) : (
+                      <View style={[styles.relatedImg, styles.relatedImgPlaceholder]}>
+                        <MessageCircle size={18} color="#9CA3AF" />
+                      </View>
+                    )}
+                    <View style={styles.relatedCardInfo}>
+                      <Text style={styles.relatedCardTitle} numberOfLines={2}>{item.judul_laporan}</Text>
+                      <View style={styles.relatedLocationRow}>
+                        <MapPin size={11} color="#9CA3AF" />
+                        <Text style={styles.relatedLocationText} numberOfLines={1}>{item.lokasi_kejadian}</Text>
+                      </View>
+                    </View>
+                    <ChevronRight size={16} color="#CBD5E0" />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           )}
-        </View>
 
-        {laporanSerupa.length > 0 && (
-          <View style={styles.relatedSection}>
-            <Text style={styles.sectionTitle}>Laporan Serupa</Text>
-            {laporanSerupa.map((item) => (
-              <TouchableOpacity
-                key={item.id}
-                style={styles.relatedCard}
-                onPress={() => router.push(`/detail-laporan/${item.id}`)}
-              >
-                {buildUploadUrl(item.gambar) ? (
-                  <Image
-                    source={{ uri: buildUploadUrl(item.gambar) as string }}
-                    style={styles.relatedImage}
-                  />
-                ) : (
-                  <View style={[styles.relatedImage, styles.imagePlaceholder]}>
-                    <Text style={styles.smallPlaceholderText}>No image</Text>
-                  </View>
-                )}
-                <View style={styles.relatedInfo}>
-                  <Text style={styles.relatedTitle} numberOfLines={2}>
-                    {item.judul_laporan}
-                  </Text>
-                  <View style={styles.relatedLocation}>
-                    <MapPin size={12} color="#777" />
-                    <Text style={styles.relatedLocationText} numberOfLines={1}>
-                      {item.lokasi_kejadian}
-                    </Text>
-                  </View>
-                </View>
-              </TouchableOpacity>
-            ))}
+          {/* Emergency CTA */}
+          <View style={styles.emergencyCard}>
+            <View style={styles.emergencyContent}>
+              <View style={styles.emergencyIconWrap}>
+                <Phone size={22} color="#0B6B2B" />
+              </View>
+              <View style={styles.emergencyTextBlock}>
+                <Text style={styles.emergencyTitle}>Butuh bantuan segera?</Text>
+                <Text style={styles.emergencySubtitle}>Hubungi layanan darurat lingkungan hidup</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.emergencyBtn} activeOpacity={0.85}>
+              <Phone size={16} color="#fff" />
+              <Text style={styles.emergencyBtnText}>Hubungi Kami</Text>
+            </TouchableOpacity>
           </View>
-        )}
 
-        <View style={styles.emergencyBox}>
-          <Text style={styles.emergencyTitle}>Butuh Laporan Segera?</Text>
-          <Text style={styles.emergencyText}>
-            Hubungi layanan darurat lingkungan hidup.
-          </Text>
-          <TouchableOpacity style={styles.emergencyButton}>
-            <Phone size={18} color="#111" />
-            <Text style={styles.emergencyButtonText}>Hubungi Kami</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.bottomSpacer} />
+          <View style={styles.bottomSpacer} />
+        </Animated.View>
       </ScrollView>
 
+      {/* Delete Confirmation Modal */}
       <Modal
         transparent
         visible={selectedDeleteId !== null}
@@ -466,35 +524,30 @@ export default function DetailLaporanScreen() {
         onRequestClose={() => setSelectedDeleteId(null)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <View style={styles.modalHeader}>
-              <View style={styles.warningCircle}>
-                <AlertCircle size={22} color="#D32F2F" />
+          <View style={styles.modalSheet}>
+            <View style={styles.modalIconRow}>
+              <View style={styles.modalWarningIcon}>
+                <AlertCircle size={26} color="#EF4444" />
               </View>
-              <Text style={styles.modalTitle}>Hapus Komentar?</Text>
             </View>
-            <Text style={styles.modalText}>
-              Apakah Anda yakin ingin menghapus komentar ini? Tindakan ini tidak
-              dapat dibatalkan.
+            <Text style={styles.modalTitle}>Hapus Komentar?</Text>
+            <Text style={styles.modalBody}>
+              Komentar ini akan dihapus secara permanen dan tidak dapat dipulihkan.
             </Text>
-            <View style={styles.modalActions}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setSelectedDeleteId(null)}
-              >
-                <Text style={styles.cancelButtonText}>Batal</Text>
+            <View style={styles.modalBtns}>
+              <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setSelectedDeleteId(null)}>
+                <Text style={styles.modalCancelText}>Batal</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[
-                  styles.confirmDeleteButton,
-                  deletingCommentId !== null && styles.disabledButton,
-                ]}
+                style={[styles.modalDeleteBtn, deletingCommentId !== null && styles.disabledButton]}
                 onPress={handleDeleteKomentar}
                 disabled={deletingCommentId !== null}
               >
-                <Text style={styles.confirmDeleteText}>
-                  {deletingCommentId ? "Menghapus..." : "Hapus"}
-                </Text>
+                {deletingCommentId ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.modalDeleteText}>Hapus</Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
@@ -504,31 +557,23 @@ export default function DetailLaporanScreen() {
   );
 }
 
-function Avatar({
-  profile,
-  name,
-  size,
-}: {
-  profile?: string | null;
-  name?: string | null;
-  size: number;
-}) {
+function Avatar({ profile, name, size }: { profile?: string | null; name?: string | null; size: number }) {
   const url = buildUploadUrl(profile);
-  const initial = name?.charAt(0)?.toUpperCase() || "U";
+  const initial = name?.charAt(0)?.toUpperCase() || "?";
+  const fontSize = size * 0.38;
 
   if (url) {
     return (
       <Image
         source={{ uri: url }}
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          backgroundColor: "#E8F5E9",
-        }}
+        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: "#E8F5E9" }}
       />
     );
   }
+
+  // Generate a consistent-ish color from name
+  const colors = ["#0B6B2B", "#1D4ED8", "#7C3AED", "#B45309", "#DC2626", "#0891B2"];
+  const colorIndex = (name?.charCodeAt(0) || 0) % colors.length;
 
   return (
     <View
@@ -536,295 +581,449 @@ function Avatar({
         width: size,
         height: size,
         borderRadius: size / 2,
-        backgroundColor: "#0B6B2B",
+        backgroundColor: colors[colorIndex],
         alignItems: "center",
         justifyContent: "center",
       }}
     >
-      <Text style={styles.avatarInitial}>{initial}</Text>
+      <Text style={{ color: "#fff", fontWeight: "700", fontSize }}>{initial}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#F5F5F5" },
+  container: { flex: 1, backgroundColor: "#F3F4F6" },
+
+  // Loading / Empty States
   loadingPage: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#F5F5F5",
-    padding: 24,
+    backgroundColor: "#F7F9F7",
+    padding: 32,
   },
-  loadingText: { marginTop: 12, color: "#222", fontWeight: "600" },
-  emptyTitle: { fontSize: 18, fontWeight: "700", color: "#111", marginBottom: 16 },
+  loadingSpinner: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#E8F5E9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+  loadingTitle: { fontSize: 17, fontWeight: "700", color: "#111827", marginBottom: 6 },
+  loadingSubtitle: { fontSize: 14, color: "#6B7280" },
+  notFoundIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#E8F5E9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: "800", color: "#111827", marginBottom: 8, textAlign: "center" },
+  emptySubtitle: { fontSize: 14, color: "#6B7280", textAlign: "center", marginBottom: 24, lineHeight: 20 },
+
+  // Top Bar
   topBar: {
-    paddingTop: 50,
-    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: Platform.OS === "ios" ? 54 : 14,
     paddingBottom: 12,
+    paddingHorizontal: 16,
     backgroundColor: "#fff",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F3F5",
   },
-  topBarTitle: { fontSize: 17, fontWeight: "700", color: "#111" },
-  iconButton: {
+  topBarTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
+  navButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
-    backgroundColor: "#F2F2F2",
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
     alignItems: "center",
     justifyContent: "center",
   },
-  headerCard: {
-    margin: 16,
-    backgroundColor: "#fff",
-    borderRadius: 16,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
+
+  // Hero Image
+  heroImageContainer: {
+    width: "100%",
+    height: 260,
+    backgroundColor: "#E5E7EB",
+    position: "relative",
   },
-  headerMetaRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  heroImage: { width: "100%", height: "100%", resizeMode: "cover" },
+  heroImagePlaceholder: {
+    flex: 1,
     alignItems: "center",
-    gap: 10,
+    justifyContent: "center",
+    backgroundColor: "#F0FDF4",
   },
-  categoryBadge: {
-    backgroundColor: "#DDEBDD",
+  placeholderIconBg: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#DCFCE7",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  placeholderLabel: { color: "#6B7280", fontSize: 14, fontWeight: "500" },
+  imageOverlayRow: {
+    position: "absolute",
+    bottom: 14,
+    left: 14,
+    right: 14,
+    flexDirection: "row",
+    gap: 8,
+    flexWrap: "wrap",
+  },
+  mainBadgeRow: {
+  flexDirection: "row",
+  alignItems: "center",
+  marginBottom: 12,
+  gap: 8,
+},
+  categoryPill: {
+    backgroundColor: "#0B6B2B",
     paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 16,
-    maxWidth: "58%",
-  },
-  categoryBadgeText: { color: "#0B6B2B", fontSize: 12, fontWeight: "700" },
-  dateRow: { flexDirection: "row", alignItems: "center", gap: 5 },
-  dateText: { fontSize: 12, color: "#666" },
-  title: {
-    fontSize: 23,
-    lineHeight: 30,
-    fontWeight: "800",
-    color: "#111",
-    marginTop: 16,
-  },
-  reporterCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    padding: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E6E6E6",
-    marginTop: 16,
-  },
-  reporterLabel: { fontSize: 12, color: "#777", fontWeight: "600" },
-  reporterName: { fontSize: 15, color: "#111", fontWeight: "700", marginTop: 2 },
-  locationRow: { flexDirection: "row", alignItems: "flex-start", gap: 8, marginTop: 14 },
-  locationText: { flex: 1, fontSize: 14, lineHeight: 20, color: "#222" },
-  imageFrame: {
-    height: 300,
-    marginHorizontal: 16,
-    borderRadius: 18,
-    overflow: "hidden",
-    backgroundColor: "#E8E8E8",
-  },
-  mainImage: { width: "100%", height: "100%" },
-  imagePlaceholder: { alignItems: "center", justifyContent: "center" },
-  placeholderText: { color: "#999", fontWeight: "600" },
-  smallPlaceholderText: { color: "#999", fontSize: 11 },
-  descriptionSection: {
-    margin: 16,
-    backgroundColor: "#005F18",
-    borderRadius: 18,
-    padding: 16,
-  },
-  descriptionHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  whiteIconCircle: {
-    width: 40,
-    height: 40,
+    paddingVertical: 5,
     borderRadius: 20,
+  },
+  categoryPillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
+  statusPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+  },
+  statusPillText: { fontSize: 12, fontWeight: "700" },
+
+  // Main Card
+  mainCard: {
     backgroundColor: "#fff",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  descriptionTitle: { flex: 1, color: "#fff", fontSize: 18, fontWeight: "800" },
-  descriptionBox: {
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.7)",
-    borderRadius: 16,
-    padding: 14,
-    marginTop: 16,
-  },
-  descriptionText: { color: "#fff", fontSize: 14, lineHeight: 22 },
-  actionRow: { flexDirection: "row", gap: 10, marginTop: 16 },
-  actionButton: {
-    flex: 1,
-    minHeight: 48,
-    backgroundColor: "#fff",
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 8,
-  },
-  actionButtonText: { color: "#111", fontWeight: "800", fontSize: 13 },
-  disabledButton: { opacity: 0.65 },
-  commentSection: {
     marginHorizontal: 16,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#ECECEC",
+    marginTop: -20,
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    elevation: 4,
   },
-  sectionTitle: { fontSize: 19, fontWeight: "800", color: "#111", marginBottom: 14 },
-  commentInputRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-  inputWrap: { flex: 1 },
-  commentInput: {
-    minHeight: 108,
-    borderWidth: 1,
-    borderColor: "#E0E0E0",
-    borderRadius: 14,
-    padding: 12,
-    color: "#111",
-    fontSize: 14,
-    textAlignVertical: "top",
-  },
-  sendButton: {
-    alignSelf: "flex-end",
-    marginTop: 10,
-    minWidth: 112,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#005F18",
-    alignItems: "center",
-    justifyContent: "center",
+  metaRow: {
     flexDirection: "row",
-    gap: 8,
+    alignItems: "center",
+    backgroundColor: "#F9FAFB",
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 14,
   },
-  sendButtonText: { color: "#fff", fontWeight: "800" },
-  emptyCommentBox: { paddingVertical: 24, alignItems: "center" },
-  emptyText: { color: "#777", fontWeight: "600" },
-  commentItem: { flexDirection: "row", gap: 10, marginTop: 18, alignItems: "flex-start" },
-  commentBubble: {
+  metaItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
+  metaDivider: { width: 1, height: 16, backgroundColor: "#E5E7EB" },
+  metaText: { fontSize: 11, color: "#6B7280", fontWeight: "500" },
+
+  reportTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#111827",
+    lineHeight: 30,
+    marginBottom: 12,
+    letterSpacing: -0.3,
+  },
+  locationChip: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    backgroundColor: "#F0FDF4",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+    marginBottom: 16,
+  },
+  locationChipText: { flex: 1, fontSize: 13, color: "#065F46", lineHeight: 18, fontWeight: "500" },
+
+  cardDivider: { height: 1, backgroundColor: "#F1F3F5", marginBottom: 16 },
+
+  reporterRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
+  reporterInfo: { flex: 1 },
+  reporterLabel: { fontSize: 11, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
+  reporterName: { fontSize: 15, color: "#111827", fontWeight: "700", marginTop: 2 },
+
+  actionRow: { flexDirection: "row", gap: 10 },
+  likeButton: {
     flex: 1,
-    backgroundColor: "#FAFAFA",
-    borderWidth: 1,
-    borderColor: "#EAEAEA",
-    borderRadius: 14,
-    padding: 12,
-  },
-  commentHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 8,
-  },
-  commentNameWrap: { flex: 1 },
-  commentName: { color: "#111", fontWeight: "800", fontSize: 14 },
-  commentDate: { color: "#777", fontSize: 12, marginTop: 2 },
-  commentText: { color: "#222", fontSize: 14, lineHeight: 20, marginTop: 10 },
-  deleteButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#FDECEC",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  relatedSection: {
-    margin: 16,
-    marginBottom: 0,
-    backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 16,
-  },
-  relatedCard: {
-    flexDirection: "row",
-    gap: 12,
-    paddingVertical: 10,
-    borderTopWidth: 1,
-    borderTopColor: "#F1F1F1",
-  },
-  relatedImage: {
-    width: 82,
-    height: 82,
-    borderRadius: 12,
-    backgroundColor: "#E8E8E8",
-  },
-  relatedInfo: { flex: 1, justifyContent: "center" },
-  relatedTitle: { fontSize: 14, fontWeight: "800", color: "#111", lineHeight: 19 },
-  relatedLocation: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 8 },
-  relatedLocationText: { flex: 1, fontSize: 12, color: "#777" },
-  emergencyBox: {
-    margin: 16,
-    backgroundColor: "#5A8516",
-    borderRadius: 18,
-    padding: 18,
-  },
-  emergencyTitle: { color: "#fff", fontSize: 19, fontWeight: "800" },
-  emergencyText: { color: "#fff", opacity: 0.9, marginTop: 8, lineHeight: 20 },
-  emergencyButton: {
     height: 46,
     borderRadius: 12,
-    backgroundColor: "#fff",
-    marginTop: 16,
+    borderWidth: 1.5,
+    borderColor: "#0B6B2B",
+    backgroundColor: "#F0FDF4",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 7,
+  },
+  likeButtonText: { color: "#0B6B2B", fontWeight: "700", fontSize: 13 },
+  shareButton: {
+    flex: 1,
+    height: 46,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    backgroundColor: "#F9FAFB",
     flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  shareButtonText: { color: "#374151", fontWeight: "700", fontSize: 13 },
+  disabledButton: { opacity: 0.55 },
+
+  // Description Section
+  descSection: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: "#0B6B2B",
+    borderRadius: 20,
+    padding: 20,
+    overflow: "hidden",
+  },
+  descHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
+  descIconWrap: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  descHeaderTitle: { color: "#fff", fontSize: 16, fontWeight: "800", flex: 1 },
+  descBody: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: 14,
+    lineHeight: 23,
+    backgroundColor: "rgba(255,255,255,0.1)",
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.15)",
+  },
+
+  // Section Cards (Comments, Related)
+  sectionCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
+  sectionTitle: { fontSize: 17, fontWeight: "800", color: "#111827" },
+  countBadge: {
+    backgroundColor: "#F3F4F6",
+    borderRadius: 10,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  countBadgeText: { fontSize: 12, fontWeight: "700", color: "#6B7280" },
+
+  // Comment Input
+  commentInputContainer: { flexDirection: "row", gap: 10, alignItems: "flex-start", marginBottom: 16 },
+  inputBox: { flex: 1 },
+  commentInput: {
+    minHeight: 90,
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 12,
+    color: "#111827",
+    fontSize: 14,
+    textAlignVertical: "top",
+    backgroundColor: "#FAFAFA",
+    lineHeight: 20,
+  },
+  sendBtn: {
+    alignSelf: "flex-end",
+    marginTop: 8,
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    backgroundColor: "#0B6B2B",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+  sendBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
+  // Empty Comments
+  emptyComments: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 28,
     gap: 8,
   },
-  emergencyButtonText: { color: "#111", fontWeight: "800" },
-  bottomSpacer: { height: 30 },
-  avatarInitial: { color: "#fff", fontWeight: "800", fontSize: 18 },
+  emptyCommentsText: { color: "#374151", fontWeight: "700", fontSize: 15 },
+  emptyCommentsSubtext: { color: "#9CA3AF", fontSize: 13 },
+
+  // Comment Items
+  commentItem: {
+    flexDirection: "row",
+    gap: 10,
+    paddingTop: 14,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  firstCommentItem: { borderTopWidth: 0, paddingTop: 0 },
+  commentContent: {
+    flex: 1,
+    backgroundColor: "#F9FAFB",
+    borderRadius: 14,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#F1F3F5",
+  },
+  commentTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
+  commenterName: { fontSize: 13, fontWeight: "700", color: "#111827" },
+  commentDate: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
+  commentText: { fontSize: 14, color: "#374151", lineHeight: 20, marginTop: 8 },
+  deleteBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: "#FEF2F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  // Related Cards
+  relatedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#F3F4F6",
+  },
+  relatedImg: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: "#F3F4F6",
+  },
+  relatedImgPlaceholder: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  relatedCardInfo: { flex: 1 },
+  relatedCardTitle: { fontSize: 13, fontWeight: "700", color: "#111827", lineHeight: 18 },
+  relatedLocationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
+  relatedLocationText: { flex: 1, fontSize: 11, color: "#9CA3AF" },
+
+  // Emergency Card
+  emergencyCard: {
+    marginHorizontal: 16,
+    marginTop: 16,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 20,
+    borderWidth: 1.5,
+    borderColor: "#D1FAE5",
+  },
+  emergencyContent: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 16 },
+  emergencyIconWrap: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#F0FDF4",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "#D1FAE5",
+  },
+  emergencyTextBlock: { flex: 1 },
+  emergencyTitle: { fontSize: 15, fontWeight: "800", color: "#111827" },
+  emergencySubtitle: { fontSize: 13, color: "#6B7280", marginTop: 2, lineHeight: 18 },
+  emergencyBtn: {
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#0B6B2B",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  emergencyBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+
+  bottomSpacer: { height: 40 },
   primaryButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
     backgroundColor: "#0B6B2B",
     paddingHorizontal: 20,
     paddingVertical: 12,
     borderRadius: 12,
   },
-  primaryButtonText: { color: "#fff", fontWeight: "800" },
+  primaryButtonText: { color: "#fff", fontWeight: "700" },
+
+  // Modal
   modalOverlay: {
     flex: 1,
-    backgroundColor: "rgba(0,0,0,0.42)",
+    backgroundColor: "rgba(0,0,0,0.5)",
     alignItems: "center",
     justifyContent: "center",
-    padding: 18,
+    padding: 24,
   },
-  modalCard: {
+  modalSheet: {
     width: "100%",
-    maxWidth: 380,
+    maxWidth: 360,
     backgroundColor: "#fff",
-    borderRadius: 18,
-    padding: 18,
+    borderRadius: 24,
+    padding: 24,
+    alignItems: "center",
   },
-  modalHeader: { flexDirection: "row", alignItems: "center", gap: 10 },
-  warningCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: "#FDECEC",
+  modalIconRow: { marginBottom: 14 },
+  modalWarningIcon: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#FEF2F2",
     alignItems: "center",
     justifyContent: "center",
   },
-  modalTitle: { color: "#111", fontSize: 18, fontWeight: "800" },
-  modalText: { color: "#666", marginTop: 14, lineHeight: 20 },
-  modalActions: { flexDirection: "row", gap: 10, marginTop: 18 },
-  cancelButton: {
+  modalTitle: { fontSize: 18, fontWeight: "800", color: "#111827", marginBottom: 10, textAlign: "center" },
+  modalBody: { fontSize: 14, color: "#6B7280", lineHeight: 20, textAlign: "center", marginBottom: 24 },
+  modalBtns: { flexDirection: "row", gap: 10, width: "100%" },
+  modalCancelBtn: {
     flex: 1,
-    height: 46,
+    height: 48,
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#D8D8D8",
+    borderWidth: 1.5,
+    borderColor: "#E5E7EB",
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelButtonText: { color: "#111", fontWeight: "800" },
-  confirmDeleteButton: {
+  modalCancelText: { color: "#374151", fontWeight: "700", fontSize: 14 },
+  modalDeleteBtn: {
     flex: 1,
-    height: 46,
+    height: 48,
     borderRadius: 12,
-    backgroundColor: "#D32F2F",
+    backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
   },
-  confirmDeleteText: { color: "#fff", fontWeight: "800" },
+  modalDeleteText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  avatarInitial: { color: "#fff", fontWeight: "800" },
 });

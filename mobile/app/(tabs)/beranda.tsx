@@ -28,6 +28,7 @@ import {
 } from "lucide-react-native";
 import { getApiBaseUrl } from "../apiConfig";
 import { router } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type SortType = "terbaru" | "terpopuler";
 
@@ -37,12 +38,26 @@ export default function BerandaScreen() {
   const [laporan, setLaporan] = useState<any[]>([]);
   const [kategori, setKategori] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     fetchLaporan();
     fetchKategori();
+    loadUser();
   }, []);
+
+  const loadUser = async () => {
+  try {
+    const storedUser = await AsyncStorage.getItem("user");
+
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  } catch (error) {
+    console.log("Error load user:", error);
+  }
+};
 
   const fetchLaporan = async () => {
     try {
@@ -183,7 +198,13 @@ export default function BerandaScreen() {
       {/* ── HEADER ── */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerGreeting}>Selamat Datang 👋</Text>
+        <Text style={styles.headerGreeting}>
+            Selamat Datang 👋
+          </Text>
+
+          <Text style={styles.headerName}>
+            {user?.username || "Pengguna"}
+          </Text>
           <Text style={styles.headerTitle}>Lapor Lingkungan</Text>
         </View>
         <TouchableOpacity style={styles.bellButton}>
@@ -373,6 +394,12 @@ const styles = StyleSheet.create({
     backgroundColor: "#E8F5E9",
     justifyContent: "center", alignItems: "center",
   },
+  headerName: {
+  fontSize: 22,
+  fontWeight: "700",
+  color: "#0B6B2B",
+  marginTop: 2,
+},
 
   // Search
   searchContainer: {
