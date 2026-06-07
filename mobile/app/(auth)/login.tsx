@@ -12,27 +12,17 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
-import Constants from "expo-constants";
 import Svg, { Path } from "react-native-svg";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getApiBaseUrl } from "../apiConfig";
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  // Ganti nilai LOCAL_API_HOST sesuai IP komputer yang menjalankan backend
-  const LOCAL_API_HOST = "192.168.1.10"; // <-- ganti dengan IP PC/Laptop kamu
-
-  const getApiBaseUrl = () => {
-    if (Platform.OS === "android") {
-      return "http://192.168.1.10:5000";
-    }
-
-    return `http://${LOCAL_API_HOST}:5000`;
-  };
 
   const handleLogin = async () => {
     if (!email || !password) {
@@ -50,17 +40,24 @@ export default function RegisterScreen() {
       });
 
       const data = await response.json();
+      const token = data.token || data.data?.token;
+      const user = data.user || data.data?.user;
 
       if (!response.ok) {
         Alert.alert("Gagal", data.message || "Terjadi kesalahan");
         return;
       }
 
-      await AsyncStorage.setItem("token", data.token);
-      await AsyncStorage.setItem("user", JSON.stringify(data.user));
+      if (!token) {
+        Alert.alert("Gagal", "Token login tidak ditemukan dari server");
+        return;
+      }
+
+      await AsyncStorage.setItem("token", token);
+      if (user) await AsyncStorage.setItem("user", JSON.stringify(user));
 
       Alert.alert("Berhasil", "Login berhasil");
-      router.replace("../(tabs)/beranda");
+      router.replace("/(tabs)/beranda");
     } catch (error) {
       Alert.alert(
         "Error",

@@ -786,7 +786,7 @@ export default function ProfileRiwayatScreen() {
                 <View style={s.sectionIcon}><FileText size={16} color={GREEN} /></View>
                 <Text style={s.sectionTitle}>Riwayat Laporan</Text>
               </View>
-              <TouchableOpacity style={s.newBtn} onPress={() => router.push("/lapor")}>
+              <TouchableOpacity style={s.newBtn} onPress={() => router.push("/laporan")}>
                 <Text style={s.newBtnTxt}>+ Buat</Text>
               </TouchableOpacity>
             </View>
@@ -824,7 +824,7 @@ export default function ProfileRiwayatScreen() {
                 <Text style={s.emptyTitle}>{activeTab === "Semua" ? "Belum ada laporan" : `Tidak ada laporan ${activeTab}`}</Text>
                 <Text style={s.emptyBody}>{activeTab === "Semua" ? "Laporan yang Anda buat akan muncul di sini" : "Coba tab yang lain"}</Text>
                 {activeTab === "Semua" && (
-                  <TouchableOpacity style={s.createBtn} onPress={() => router.push("/lapor")}>
+                  <TouchableOpacity style={s.createBtn} onPress={() => router.push("/laporan")}>
                     <Text style={s.createBtnTxt}>Buat Laporan Pertama</Text>
                   </TouchableOpacity>
                 )}
