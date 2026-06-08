@@ -39,22 +39,57 @@ export const createKomentar = async (
   return data;
 };
 
-export const deleteKomentar = async (
+export const updateKomentar = async (
   komentarId: string | number,
+  isiKomentar: string,
   token: string
 ) => {
-  const response = await fetch(`${API_URL}/api/komentar/${komentarId}`, {
-    method: "DELETE",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-  });
+  const response = await fetch(
+    `${API_URL}/api/komentar/${komentarId}`,
+    {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        isi_komentar: isiKomentar,
+      }),
+    }
+  );
 
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.message || "Gagal menghapus komentar");
+    throw new Error(
+      data.message || "Gagal memperbarui komentar"
+    );
+  }
+
+  return data;
+};
+
+export const deleteKomentar = async (
+  komentarId: string | number,
+  token: string
+) => {
+  const response = await fetch(
+    `${API_URL}/api/komentar/${komentarId}`,
+    {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    }
+  );
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(
+      data.message || "Gagal menghapus komentar"
+    );
   }
 
   return data;

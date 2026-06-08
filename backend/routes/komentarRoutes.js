@@ -5,6 +5,7 @@ const {
   createKomentar,
   getKomentarByLaporan,
   deleteKomentar,
+  updateKomentar,
 } = require("../controller/komentarController");
 
 const authMiddleware = require("../middleware/authMiddleware");
@@ -27,6 +28,13 @@ router.delete(
   "/:id",
   authMiddleware,
   deleteKomentar
+);
+
+// UPDATE KOMENTAR
+router.put(
+  "/:id",
+  authMiddleware,
+  updateKomentar
 );
 
 module.exports = router;

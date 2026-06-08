@@ -151,8 +151,72 @@ const deleteKomentar = async (req, res) => {
   }
 };
 
+// =========================
+// UPDATE KOMENTAR (HANYA PEMILIK)
+// =========================
+const updateKomentar = async (req, res) => {
+  try {
+    const { id } = req.params; // id komentar
+    const { isi_komentar } = req.body;
+
+    const user_id = req.user.id;
+
+    // cek komentar
+    const checkResult = await db.query(
+      `SELECT * FROM komentar WHERE id = $1`,
+      [id]
+    );
+
+    if (checkResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Komentar tidak ditemukan",
+      });
+    }
+
+    const komentar = checkResult.rows[0];
+
+    // hanya pemilik komentar
+    if (komentar.user_id !== user_id) {
+      return res.status(403).json({
+        success: false,
+        message: "Tidak bisa mengedit komentar orang lain",
+      });
+    }
+
+    const updateQuery = `
+      UPDATE komentar
+      SET
+        isi_komentar = $1,
+        updated_at = NOW()
+      WHERE id = $2
+      RETURNING *
+    `;
+
+    const result = await db.query(
+      updateQuery,
+      [isi_komentar, id]
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Komentar berhasil diupdate",
+      data: result.rows[0],
+    });
+
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Gagal mengupdate komentar",
+    });
+  }
+};
+
 module.exports = {
   createKomentar,
   getKomentarByLaporan,
   deleteKomentar,
+  updateKomentar,
 };

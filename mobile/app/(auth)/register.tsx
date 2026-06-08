@@ -15,7 +15,7 @@ import {
 import Svg, { Path } from "react-native-svg";
 import MaterialIcons from "@expo/vector-icons/MaterialIcons";
 import { router } from "expo-router";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getApiBaseUrl } from "../apiConfig";
 
 export default function RegisterScreen() {
   const [email, setEmail] = useState("");
@@ -23,16 +23,6 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
-  // Ganti nilai LOCAL_API_HOST sesuai IP komputer yang menjalankan backend
-  const LOCAL_API_HOST = "192.168.1.10"; // <-- ganti dengan IP PC/Laptop kamu
-
-  const getApiBaseUrl = () => {
-    if (Platform.OS === "android") {
-      return "http://192.168.1.10:5000";
-    }
-    return `http://${LOCAL_API_HOST}:5000`;
-  };
 
   const handleRegister = async () => {
     if (!username) {
@@ -61,7 +51,7 @@ export default function RegisterScreen() {
       }
 
       Alert.alert("Berhasil", "Akun berhasil dibuat");
-      router.replace("../(tabs)/beranda");
+      router.replace("/(auth)/login");
     } catch (error) {
       Alert.alert("Error", "Tidak dapat terhubung ke server");
     } finally {

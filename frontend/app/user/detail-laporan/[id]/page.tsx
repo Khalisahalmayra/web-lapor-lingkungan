@@ -16,6 +16,9 @@ import {
   Phone,
   Trash2,
   AlertCircle,
+  Pencil,
+  X,
+  Check,
 } from "lucide-react";
 import { getSession, useSession } from "next-auth/react";
 
@@ -41,15 +44,18 @@ export default function DetailLaporanPage() {
   const [loadingLike, setLoadingLike] = useState(false);
   const [deletingCommentId, setDeletingCommentId] = useState<number | null>(null);
 
+  // ── EDIT STATE ──────────────────────────────────────────────
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editIsiKomentar, setEditIsiKomentar] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  // ────────────────────────────────────────────────────────────
+
   const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<
-    "success" | "error" | ""
-  >("");
+  const [messageType, setMessageType] = useState<"success" | "error" | "">("");
 
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
   const { data: session } = useSession();
-
 
   const [currentUser, setCurrentUser] = useState<any>(() => {
     try {
@@ -60,7 +66,6 @@ export default function DetailLaporanPage() {
   });
 
   useEffect(() => {
-    // when session changes, prefer sessionStorage user if present
     try {
       const stored = typeof window !== "undefined" ? sessionStorage.getItem("user") : null;
       if (stored) {
@@ -74,7 +79,6 @@ export default function DetailLaporanPage() {
   useEffect(() => {
     const handler = (e: Event) => {
       try {
-        // allow custom event with detail or fallback to sessionStorage
         const custom = (e as CustomEvent).detail;
         if (custom) {
           setCurrentUser(custom);
@@ -82,7 +86,6 @@ export default function DetailLaporanPage() {
           return;
         }
       } catch {}
-
       try {
         const stored = sessionStorage.getItem("user");
         if (stored) setCurrentUser(JSON.parse(stored));
@@ -91,7 +94,6 @@ export default function DetailLaporanPage() {
 
     window.addEventListener("user-updated", handler as EventListener);
     window.addEventListener("storage", handler as EventListener);
-
     return () => {
       window.removeEventListener("user-updated", handler as EventListener);
       window.removeEventListener("storage", handler as EventListener);
@@ -108,26 +110,15 @@ export default function DetailLaporanPage() {
       .then((res) => res.json())
       .then((data) => {
         const detail = data.data || data;
-
         setLaporan(detail);
 
-        // laporan serupa
         fetch("http://localhost:5000/api/laporan")
           .then((res) => res.json())
           .then((laporanData) => {
-            const semuaLaporan = Array.isArray(
-              laporanData
-            )
-              ? laporanData
-              : laporanData.data || [];
-
+            const semuaLaporan = Array.isArray(laporanData) ? laporanData : laporanData.data || [];
             const filtered = semuaLaporan.filter(
-              (item: any) =>
-                item.id !== detail.id &&
-                item.category_name ===
-                  detail.category_name
+              (item: any) => item.id !== detail.id && item.category_name === detail.category_name
             );
-
             setLaporanSerupa(filtered.slice(0, 4));
           });
       })
@@ -139,12 +130,8 @@ export default function DetailLaporanPage() {
   // =====================================
   const fetchKomentar = async () => {
     try {
-      const response = await fetch(
-        `http://localhost:5000/api/komentar/laporan/${id}`
-      );
-
+      const response = await fetch(`http://localhost:5000/api/komentar/laporan/${id}`);
       const data = await response.json();
-
       if (data.success) {
         setKomentar(data.data || []);
       } else {
@@ -158,36 +145,24 @@ export default function DetailLaporanPage() {
 
   useEffect(() => {
     if (!id) return;
-
     fetchKomentar();
   }, [id]);
 
-  // =====================================
-  // AUTO HILANGKAN MESSAGE
-  // =====================================
   useEffect(() => {
     if (!message) return;
-
     const timer = setTimeout(() => {
       setMessage("");
       setMessageType("");
     }, 3000);
-
     return () => clearTimeout(timer);
   }, [message]);
 
-  // =====================================
-  // LOADING
-  // =====================================
   if (!laporan) {
     return (
       <>
         <Navbar />
-
         <main className="min-h-screen flex items-center justify-center bg-[#F5F5F5]">
-          <h1 className="text-2xl font-bold text-black">
-            Loading...
-          </h1>
+          <h1 className="text-2xl font-bold text-black">Loading...</h1>
         </main>
       </>
     );
@@ -205,10 +180,7 @@ export default function DetailLaporanPage() {
           url: window.location.href,
         });
       } else {
-        await navigator.clipboard.writeText(
-          window.location.href
-        );
-
+        await navigator.clipboard.writeText(window.location.href);
         setMessage("Link berhasil disalin");
         setMessageType("success");
       }
@@ -223,38 +195,23 @@ export default function DetailLaporanPage() {
   const handleLike = async () => {
     try {
       setLoadingLike(true);
-
       const session = await getSession();
-
       const token = session?.accessToken;
-
       if (!token) {
         setMessage("Silahkan login terlebih dahulu");
         setMessageType("error");
         return;
       }
-
-      const response = await fetch(
-        `http://localhost:5000/api/laporan/${id}/like`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
+      const response = await fetch(`http://localhost:5000/api/laporan/${id}/like`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
       const data = await response.json();
-
       if (response.ok) {
         setLaporan((prev: any) => ({
           ...prev,
-          total_like: data.liked
-            ? (prev.total_like || 0) + 1
-            : (prev.total_like || 0) - 1,
+          total_like: data.liked ? (prev.total_like || 0) + 1 : (prev.total_like || 0) - 1,
         }));
-
         setMessage(data.message);
         setMessageType("success");
       } else {
@@ -263,7 +220,6 @@ export default function DetailLaporanPage() {
       }
     } catch (error) {
       console.log(error);
-
       setMessage("Terjadi kesalahan");
       setMessageType("error");
     } finally {
@@ -276,77 +232,37 @@ export default function DetailLaporanPage() {
   // =====================================
   const handleKirimKomentar = async () => {
     if (!isiKomentar.trim()) {
-      setMessage(
-        "Komentar tidak boleh kosong"
-      );
-
+      setMessage("Komentar tidak boleh kosong");
       setMessageType("error");
-
       return;
     }
-
     try {
       const session = await getSession();
-
       const token = session?.accessToken;
-
       if (!token) {
         setMessage("Silahkan login terlebih dahulu");
         setMessageType("error");
         return;
       }
-
-      const response = await fetch(
-        "http://localhost:5000/api/komentar",
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            laporan_id: id,
-            isi_komentar: isiKomentar,
-          }),
-        }
-      );
-
+      const response = await fetch("http://localhost:5000/api/komentar", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ laporan_id: id, isi_komentar: isiKomentar }),
+      });
       const data = await response.json();
-
       if (response.ok) {
-
-        // refresh komentar dari database
         await fetchKomentar();
-
-        // update total komentar
-        setLaporan((prev: any) => ({
-          ...prev,
-          total_komen:
-            (prev.total_komen || 0) + 1,
-        }));
-
+        setLaporan((prev: any) => ({ ...prev, total_komen: (prev.total_komen || 0) + 1 }));
         setIsiKomentar("");
-
-        setMessage(
-          "Komentar berhasil dikirim"
-        );
-
+        setMessage("Komentar berhasil dikirim");
         setMessageType("success");
-
       } else {
-
-        setMessage(
-          data.message ||
-            "Gagal mengirim komentar"
-        );
-
+        setMessage(data.message || "Gagal mengirim komentar");
         setMessageType("error");
       }
     } catch (error) {
       console.log(error);
-
       setMessage("Terjadi kesalahan server");
-
       setMessageType("error");
     }
   };
@@ -357,9 +273,60 @@ export default function DetailLaporanPage() {
   const handleDeleteKomentar = async (komentarId: number) => {
     try {
       setDeletingCommentId(komentarId);
-
       const session = await getSession();
+      const token = session?.accessToken;
+      if (!token) {
+        setMessage("Silahkan login terlebih dahulu");
+        setMessageType("error");
+        return;
+      }
+      const response = await fetch(`http://localhost:5000/api/komentar/${komentarId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (response.ok) {
+        await fetchKomentar();
+        setLaporan((prev: any) => ({ ...prev, total_komen: (prev.total_komen || 0) - 1 }));
+        setMessage("Komentar berhasil dihapus");
+        setMessageType("success");
+        setShowDeleteModal(false);
+      } else {
+        setMessage(data.message || "Gagal menghapus komentar");
+        setMessageType("error");
+      }
+    } catch (error) {
+      console.log(error);
+      setMessage("Terjadi kesalahan server");
+      setMessageType("error");
+    } finally {
+      setDeletingCommentId(null);
+    }
+  };
 
+  // =====================================
+  // EDIT KOMENTAR
+  // =====================================
+  const handleStartEdit = (item: any) => {
+    setEditingCommentId(item.id);
+    setEditIsiKomentar(item.isi_komentar);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditIsiKomentar("");
+  };
+
+  const handleSaveEdit = async (komentarId: number) => {
+    if (!editIsiKomentar.trim()) {
+      setMessage("Komentar tidak boleh kosong");
+      setMessageType("error");
+      return;
+    }
+
+    try {
+      setSavingEdit(true);
+      const session = await getSession();
       const token = session?.accessToken;
 
       if (!token) {
@@ -368,56 +335,30 @@ export default function DetailLaporanPage() {
         return;
       }
 
-      const response = await fetch(
-        `http://localhost:5000/api/komentar/${komentarId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      const response = await fetch(`http://localhost:5000/api/komentar/${komentarId}`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ isi_komentar: editIsiKomentar }),
+      });
 
       const data = await response.json();
 
       if (response.ok) {
-
-        // refresh komentar dari database
         await fetchKomentar();
-
-        // update total komentar
-        setLaporan((prev: any) => ({
-          ...prev,
-          total_komen:
-            (prev.total_komen || 0) - 1,
-        }));
-
-        setMessage(
-          "Komentar berhasil dihapus"
-        );
-
+        setEditingCommentId(null);
+        setEditIsiKomentar("");
+        setMessage("Komentar berhasil diperbarui");
         setMessageType("success");
-
-        setShowDeleteModal(false);
-
       } else {
-
-        setMessage(
-          data.message ||
-            "Gagal menghapus komentar"
-        );
-
+        setMessage(data.message || "Gagal memperbarui komentar");
         setMessageType("error");
       }
     } catch (error) {
       console.log(error);
-
       setMessage("Terjadi kesalahan server");
-
       setMessageType("error");
     } finally {
-      setDeletingCommentId(null);
+      setSavingEdit(false);
     }
   };
 
@@ -426,7 +367,6 @@ export default function DetailLaporanPage() {
       <Navbar />
 
       <main className="min-h-screen bg-[#F5F5F5] px-6 lg:px-10 py-8">
-
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-8">
 
           {/* LEFT */}
@@ -434,29 +374,19 @@ export default function DetailLaporanPage() {
 
             {/* HEADER */}
             <div className="bg-white rounded-2xl p-6 shadow-sm">
-
               <div className="flex justify-between flex-wrap gap-4">
-
                 <span className="px-4 py-2 rounded-full bg-[#DDEBDD] text-[#0B6B2B] font-semibold text-sm">
                   {laporan.category_name}
                 </span>
-
                 <div className="flex items-center gap-2 text-sm text-black">
                   <CalendarDays className="w-4 h-4" />
-
-                  {new Date(
-                    laporan.created_at
-                  ).toLocaleDateString("id-ID")}
+                  {new Date(laporan.created_at).toLocaleDateString("id-ID")}
                 </div>
               </div>
 
-              <h1 className="mt-5 text-3xl font-bold text-black">
-                {laporan.judul_laporan}
-              </h1>
+              <h1 className="mt-5 text-3xl font-bold text-black">{laporan.judul_laporan}</h1>
 
-              {/* USER */}
               <div className="mt-6 border rounded-2xl p-4 flex items-center gap-4">
-
                 {buildProfileUrl(laporan.profile) ? (
                   <Image
                     src={buildProfileUrl(laporan.profile) as string}
@@ -471,12 +401,8 @@ export default function DetailLaporanPage() {
                     {laporan.username?.charAt(0)}
                   </div>
                 )}
-
                 <div>
-                  <p className="font-semibold text-black">
-                    Dilaporkan Oleh
-                  </p>
-
+                  <p className="font-semibold text-black">Dilaporkan Oleh</p>
                   <p className="text-black">{laporan.username}</p>
                 </div>
               </div>
@@ -489,7 +415,6 @@ export default function DetailLaporanPage() {
 
             {/* IMAGE */}
             <div className="relative mt-6 w-full h-[500px] rounded-2xl overflow-hidden">
-
               {laporan.gambar ? (
                 <img
                   src={`http://localhost:5000/uploads/${laporan.gambar}`}
@@ -505,70 +430,47 @@ export default function DetailLaporanPage() {
                   className="object-cover"
                 />
               )}
-
             </div>
 
             {/* DESKRIPSI */}
             <div className="mt-6 bg-[#005F18] rounded-2xl p-6">
-
               <div className="flex items-center gap-4">
-
                 <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
                   <MessageCircle className="w-5 h-5 text-[#005F18]" />
                 </div>
-
-                <h2 className="text-2xl font-bold text-white">
-                  Detail Deskripsi Laporan
-                </h2>
-
+                <h2 className="text-2xl font-bold text-white">Detail Deskripsi Laporan</h2>
               </div>
 
               <div className="mt-6 border border-white rounded-2xl p-6">
-
-                <p className="text-white whitespace-pre-line">
-                  {laporan.isi_laporan}
-                </p>
-
+                <p className="text-white whitespace-pre-line">{laporan.isi_laporan}</p>
               </div>
 
-              {/* BUTTON */}
               <div className="flex gap-5 mt-8 flex-wrap">
-
-                {/* LIKE */}
                 <button
                   onClick={handleLike}
                   disabled={loadingLike}
                   className="px-10 py-4 rounded-xl bg-white text-black font-bold flex items-center gap-3 hover:scale-105 transition"
                 >
                   <ThumbsUp className="w-5 h-5" />
-
-                  Dukung (
-                  {laporan.total_like || 0})
+                  Dukung ({laporan.total_like || 0})
                 </button>
 
-                {/* SHARE */}
                 <button
                   onClick={handleShare}
                   className="px-10 py-4 rounded-xl bg-white text-black font-bold flex items-center gap-3 hover:scale-105 transition"
                 >
                   <Share2 className="w-5 h-5" />
-
                   Bagikan
                 </button>
-
               </div>
             </div>
 
             {/* KOMENTAR */}
             <div className="mt-10 bg-white rounded-2xl p-6 border">
-
               <div className="flex items-center justify-between flex-wrap gap-4">
-
                 <h2 className="text-3xl font-bold text-black">
-                  Komentar (
-                  {laporan.total_komen || 0})
+                  Komentar ({laporan.total_komen || 0})
                 </h2>
-
               </div>
 
               {/* MESSAGE */}
@@ -587,7 +489,6 @@ export default function DetailLaporanPage() {
 
               {/* INPUT */}
               <div className="flex gap-5 mt-8">
-
                 {buildProfileUrl(currentUser?.profile) ? (
                   <Image
                     src={buildProfileUrl(currentUser?.profile) as string}
@@ -599,56 +500,37 @@ export default function DetailLaporanPage() {
                   />
                 ) : (
                   <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
-                    {currentUser?.username?.charAt(0) ||
-                      "U"}
+                    {currentUser?.username?.charAt(0) || "U"}
                   </div>
                 )}
 
                 <div className="flex-1">
-
                   <textarea
                     value={isiKomentar}
-                    onChange={(e) =>
-                      setIsiKomentar(
-                        e.target.value
-                      )
-                    }
+                    onChange={(e) => setIsiKomentar(e.target.value)}
                     className="w-full h-[120px] text-black border rounded-2xl p-5"
                     placeholder="Tulis komentar..."
                   />
-
                   <div className="flex justify-end mt-4">
-
                     <button
-                      onClick={
-                        handleKirimKomentar
-                      }
+                      onClick={handleKirimKomentar}
                       className="px-10 py-3 rounded-xl bg-[#005F18] text-white flex items-center gap-2"
                     >
                       <Send className="w-5 h-5" />
-
                       Kirim
                     </button>
-
                   </div>
-
                 </div>
               </div>
 
               {/* EMPTY */}
               {komentar.length === 0 && (
-                <p className="text-center mt-8 text-black">
-                  Belum ada komentar
-                </p>
+                <p className="text-center mt-8 text-black">Belum ada komentar</p>
               )}
 
               {/* LIST */}
               {komentar.map((item, index) => (
-                <div
-                  key={index}
-                  className="flex gap-5 mt-8"
-                >
-
+                <div key={index} className="flex gap-5 mt-8">
                   {buildProfileUrl(item.profile) ? (
                     <Image
                       src={buildProfileUrl(item.profile) as string}
@@ -660,76 +542,88 @@ export default function DetailLaporanPage() {
                     />
                   ) : (
                     <div className="w-14 h-14 rounded-full bg-[#0B6B2B] flex items-center justify-center text-white font-bold">
-                      {item.username?.charAt(
-                        0
-                      ) || "U"}
+                      {item.username?.charAt(0) || "U"}
                     </div>
                   )}
 
                   <div className="flex-1 border rounded-2xl text-black p-5 bg-[#FAFAFA]">
-
                     <div className="flex items-center justify-between flex-wrap gap-2">
-
-                      <h3 className="font-bold text-black">
-                        {item.username}
-                      </h3>
+                      <h3 className="font-bold text-black">{item.username}</h3>
 
                       <div className="flex items-center gap-3">
                         <p className="text-sm text-black">
-                          {new Date(
-                            item.created_at
-                          ).toLocaleDateString(
-                            "id-ID"
-                          )}
+                          {new Date(item.created_at).toLocaleDateString("id-ID")}
                         </p>
 
-                        {currentUser?.id === item.user_id && (
-                          <button
-                            onClick={() => {
-                              setSelectedDeleteId(item.id);
-                              setShowDeleteModal(true);
-                            }}
-                            className="text-red-500 hover:text-red-700 transition"
-                            title="Hapus komentar"
-                          >
-                            <Trash2 size={18} />
-                          </button>
+                        {/* TOMBOL EDIT & HAPUS — hanya untuk pemilik komentar */}
+                        {currentUser?.id === item.user_id && editingCommentId !== item.id && (
+                          <>
+                            <button
+                              onClick={() => handleStartEdit(item)}
+                              className="text-blue-500 hover:text-blue-700 transition"
+                              title="Edit komentar"
+                            >
+                              <Pencil size={18} />
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedDeleteId(item.id);
+                                setShowDeleteModal(true);
+                              }}
+                              className="text-red-500 hover:text-red-700 transition"
+                              title="Hapus komentar"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          </>
                         )}
                       </div>
-
                     </div>
 
-                    <p className="mt-3 text-black">
-                      {item.isi_komentar}
-                    </p>
-
+                    {/* MODE EDIT */}
+                    {editingCommentId === item.id ? (
+                      <div className="mt-3">
+                        <textarea
+                          value={editIsiKomentar}
+                          onChange={(e) => setEditIsiKomentar(e.target.value)}
+                          className="w-full h-[100px] text-black border border-blue-300 rounded-xl p-3 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          autoFocus
+                        />
+                        <div className="flex justify-end gap-2 mt-2">
+                          <button
+                            onClick={handleCancelEdit}
+                            className="px-4 py-2 rounded-xl border border-gray-300 text-black flex items-center gap-1 hover:bg-gray-100 transition text-sm"
+                          >
+                            <X size={15} />
+                            Batal
+                          </button>
+                          <button
+                            onClick={() => handleSaveEdit(item.id)}
+                            disabled={savingEdit}
+                            className="px-4 py-2 rounded-xl bg-[#005F18] text-white flex items-center gap-1 hover:bg-[#004d14] transition text-sm disabled:opacity-50"
+                          >
+                            <Check size={15} />
+                            {savingEdit ? "Menyimpan..." : "Simpan"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-black">{item.isi_komentar}</p>
+                    )}
                   </div>
-
                 </div>
               ))}
-
             </div>
-
           </div>
 
           {/* RIGHT */}
           <div className="space-y-6">
-
-            {/* LAPORAN SERUPA */}
             <div className="bg-white rounded-2xl p-6">
-
-              <h2 className="text-2xl font-bold text-black mb-6">
-                Laporan Serupa
-              </h2>
-
+              <h2 className="text-2xl font-bold text-black mb-6">Laporan Serupa</h2>
               {laporanSerupa.map((item) => (
-                <Link
-                  key={item.id}
-                  href={`/user/detail-laporan/${item.id}`}
-                >
-
+                <Link key={item.id} href={`/user/detail-laporan/${item.id}`}>
                   <div className="flex gap-4 mb-5 hover:bg-[#F5F5F5] p-2 rounded-xl transition">
-
                     {item.gambar ? (
                       <img
                         src={`http://localhost:5000/uploads/${item.gambar}`}
@@ -745,48 +639,24 @@ export default function DetailLaporanPage() {
                         className="rounded-xl object-cover"
                       />
                     )}
-
                     <div>
-                      <h3 className="font-bold">
-                        {item.judul_laporan}
-                      </h3>
-
-                      <p className="text-sm">
-                        {item.lokasi_kejadian}
-                      </p>
+                      <h3 className="font-bold">{item.judul_laporan}</h3>
+                      <p className="text-sm">{item.lokasi_kejadian}</p>
                     </div>
-
                   </div>
-
                 </Link>
               ))}
-
             </div>
 
-            {/* HUBUNGI */}
             <div className="bg-[#5A8516] p-6 rounded-2xl text-white">
-
-              <h2 className="text-2xl font-bold">
-                Butuh Laporan Segera?
-              </h2>
-
-              <p className="mt-3">
-                Hubungi layanan darurat
-                lingkungan hidup.
-              </p>
-
+              <h2 className="text-2xl font-bold">Butuh Laporan Segera?</h2>
+              <p className="mt-3">Hubungi layanan darurat lingkungan hidup.</p>
               <button className="mt-6 w-full bg-white text-black py-3 rounded-xl flex items-center justify-center gap-2">
-
                 <Phone className="w-5 h-5" />
-
                 Hubungi Kami
-
               </button>
-
             </div>
-
           </div>
-
         </div>
 
         {/* DELETE CONFIRMATION MODAL */}
@@ -797,9 +667,7 @@ export default function DetailLaporanPage() {
                 <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
                   <AlertCircle className="text-red-600" size={22} />
                 </div>
-                <h2 className="text-xl font-bold text-black">
-                  Hapus Komentar?
-                </h2>
+                <h2 className="text-xl font-bold text-black">Hapus Komentar?</h2>
               </div>
 
               <p className="text-gray-600 mb-6">
@@ -813,12 +681,9 @@ export default function DetailLaporanPage() {
                 >
                   Batal
                 </button>
-
                 <button
                   onClick={() => {
-                    if (selectedDeleteId) {
-                      handleDeleteKomentar(selectedDeleteId);
-                    }
+                    if (selectedDeleteId) handleDeleteKomentar(selectedDeleteId);
                   }}
                   disabled={deletingCommentId !== null}
                   className="flex-1 px-4 py-3 rounded-xl bg-red-500 text-white font-semibold hover:bg-red-600 transition disabled:opacity-50"

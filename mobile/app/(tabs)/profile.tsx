@@ -772,12 +772,12 @@ export default function ProfileRiwayatScreen() {
 
         <Animated.View style={{ opacity: fadeAnim }}>
           {/* ── Stats ── */}
-          <View style={s.statsRow}>
-            <StatCard value={stats.total} label="Total" color="#111827" />
-            <StatCard value={stats.selesai} label="Selesai" color="#10B981" />
-            <StatCard value={stats.diproses} label="Diproses" color="#3B82F6" />
-            <StatCard value={stats.menunggu} label="Menunggu" color="#EAB308" />
-          </View>
+            <View style={s.statsRow}>
+              <StatCard value={stats.selesai}  label="Selesai"  color="#10B981" />
+              <StatCard value={stats.diproses} label="Diproses" color="#3B82F6" />
+              <StatCard value={stats.menunggu} label="Menunggu" color="#EAB308" />
+              <StatCard value={stats.ditolak}  label="Ditolak"  color="#EF4444" />
+            </View>
 
           {/* ── Riwayat Section ── */}
           <View style={s.section}>
@@ -786,7 +786,7 @@ export default function ProfileRiwayatScreen() {
                 <View style={s.sectionIcon}><FileText size={16} color={GREEN} /></View>
                 <Text style={s.sectionTitle}>Riwayat Laporan</Text>
               </View>
-              <TouchableOpacity style={s.newBtn} onPress={() => router.push("/lapor")}>
+              <TouchableOpacity style={s.newBtn} onPress={() => router.push("/laporan")}>
                 <Text style={s.newBtnTxt}>+ Buat</Text>
               </TouchableOpacity>
             </View>
@@ -824,7 +824,7 @@ export default function ProfileRiwayatScreen() {
                 <Text style={s.emptyTitle}>{activeTab === "Semua" ? "Belum ada laporan" : `Tidak ada laporan ${activeTab}`}</Text>
                 <Text style={s.emptyBody}>{activeTab === "Semua" ? "Laporan yang Anda buat akan muncul di sini" : "Coba tab yang lain"}</Text>
                 {activeTab === "Semua" && (
-                  <TouchableOpacity style={s.createBtn} onPress={() => router.push("/lapor")}>
+                  <TouchableOpacity style={s.createBtn} onPress={() => router.push("/laporan")}>
                     <Text style={s.createBtnTxt}>Buat Laporan Pertama</Text>
                   </TouchableOpacity>
                 )}
@@ -837,15 +837,15 @@ export default function ProfileRiwayatScreen() {
           </View>
 
           {/* ── Logout bottom row ── */}
-          <View style={s.section}>
-            <TouchableOpacity style={s.logoutRow} onPress={() => setShowLogout(true)} activeOpacity={0.8}>
-              <View style={s.logoutIcon}><LogOut size={18} color="#EF4444" /></View>
-              <Text style={s.logoutTxt}>Keluar dari Akun</Text>
-              <ChevronRight size={16} color="#EF4444" />
-            </TouchableOpacity>
-          </View>
+            <View style={s.section}>
+              <TouchableOpacity style={s.logoutRow} onPress={() => setShowLogout(true)} activeOpacity={0.8}>
+                <View style={s.logoutIcon}><LogOut size={18} color="#EF4444" /></View>
+                <Text style={s.logoutTxt}>Keluar dari Akun</Text>
+                <ChevronRight size={16} color="#EF4444" />
+              </TouchableOpacity>
+            </View>
 
-          <View style={{ height: 48 }} />
+<View style={{ height: 100 }} /> {/* ← naikan clearance supaya tidak ketutup tab bar */}
         </Animated.View>
       </Animated.ScrollView>
     </View>

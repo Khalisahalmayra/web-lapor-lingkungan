@@ -4,15 +4,18 @@ import {
   AlertCircle,
   ArrowLeft,
   CalendarDays,
+  Check,
   ChevronRight,
   MapPin,
   MessageCircle,
+  Pencil,
   Phone,
   Send,
   Share2,
   ThumbsUp,
   Trash2,
   Users,
+  X,
 } from "lucide-react-native";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -43,6 +46,7 @@ import {
   createKomentar,
   deleteKomentar,
   getKomentarByLaporan,
+  updateKomentar, // ← tambahkan ini di komentarService
 } from "../services/komentarService";
 
 const API_URL = getApiBaseUrl();
@@ -61,17 +65,12 @@ const formatDate = (date?: string) => {
   });
 };
 
-// Status badge color helper
 const getStatusStyle = (status?: string) => {
   switch (status?.toLowerCase()) {
-    case "selesai":
-      return { bg: "#D1FAE5", text: "#065F46" };
-    case "diproses":
-      return { bg: "#FEF3C7", text: "#92400E" };
-    case "ditolak":
-      return { bg: "#FEE2E2", text: "#991B1B" };
-    default:
-      return { bg: "#DBEAFE", text: "#1E40AF" };
+    case "selesai":   return { bg: "#D1FAE5", text: "#065F46" };
+    case "diproses":  return { bg: "#FEF3C7", text: "#92400E" };
+    case "ditolak":   return { bg: "#FEE2E2", text: "#991B1B" };
+    default:          return { bg: "#DBEAFE", text: "#1E40AF" };
   }
 };
 
@@ -92,8 +91,13 @@ export default function DetailLaporanScreen() {
   const [selectedDeleteId, setSelectedDeleteId] = useState<number | null>(null);
   const [imageError, setImageError] = useState(false);
 
-  const fadeAnim = useMemo(() => new Animated.Value(0), []);
+  // ── EDIT STATE ─────────────────────────────────────────────
+  const [editingCommentId, setEditingCommentId] = useState<number | null>(null);
+  const [editIsiKomentar, setEditIsiKomentar] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  // ───────────────────────────────────────────────────────────
 
+  const fadeAnim = useMemo(() => new Animated.Value(0), []);
   const gambarUrl = useMemo(() => buildUploadUrl(laporan?.gambar), [laporan?.gambar]);
 
   useEffect(() => {
@@ -127,8 +131,7 @@ export default function DetailLaporanScreen() {
     setLaporan(detail);
     const semuaLaporan = await getAllLaporan();
     const filtered = semuaLaporan.filter(
-      (item: any) =>
-        item.id !== detail.id && item.category_name === detail.category_name
+      (item: any) => item.id !== detail.id && item.category_name === detail.category_name
     );
     setLaporanSerupa(filtered.slice(0, 4));
   }, [laporanId]);
@@ -170,7 +173,10 @@ export default function DetailLaporanScreen() {
     try {
       setLoadingLike(true);
       const data = await toggleLikeLaporan(laporanId, token);
-      setLaporan((prev: any) => ({ ...prev, total_like: Math.max(0, (prev.total_like || 0) + (data.liked ? 1 : -1)) }));
+      setLaporan((prev: any) => ({
+        ...prev,
+        total_like: Math.max(0, (prev.total_like || 0) + (data.liked ? 1 : -1)),
+      }));
       Alert.alert("Berhasil", data.message || "Dukungan diperbarui");
     } catch (error) {
       Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal mendukung laporan");
@@ -206,6 +212,38 @@ export default function DetailLaporanScreen() {
     } catch (error) {
       Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal menghapus komentar");
     } finally { setDeletingCommentId(null); }
+  };
+
+  // =====================================
+  // EDIT KOMENTAR
+  // =====================================
+  const handleStartEdit = (item: any) => {
+    setEditingCommentId(item.id);
+    setEditIsiKomentar(item.isi_komentar);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingCommentId(null);
+    setEditIsiKomentar("");
+  };
+
+  const handleSaveEdit = async (komentarId: number) => {
+    if (!editIsiKomentar.trim()) {
+      Alert.alert("Peringatan", "Komentar tidak boleh kosong");
+      return;
+    }
+    const token = await getToken();
+    if (!token) return;
+    try {
+      setSavingEdit(true);
+      await updateKomentar(komentarId, editIsiKomentar.trim(), token);
+      await fetchKomentar();
+      setEditingCommentId(null);
+      setEditIsiKomentar("");
+      Alert.alert("Berhasil", "Komentar berhasil diperbarui");
+    } catch (error) {
+      Alert.alert("Gagal", error instanceof Error ? error.message : "Gagal memperbarui komentar");
+    } finally { setSavingEdit(false); }
   };
 
   if (loading) {
@@ -266,11 +304,7 @@ export default function DetailLaporanScreen() {
           {/* Hero Image */}
           <View style={styles.heroImageContainer}>
             {gambarUrl && !imageError ? (
-              <Image
-                source={{ uri: gambarUrl }}
-                style={styles.heroImage}
-                onError={() => setImageError(true)}
-              />
+              <Image source={{ uri: gambarUrl }} style={styles.heroImage} onError={() => setImageError(true)} />
             ) : (
               <View style={styles.heroImagePlaceholder}>
                 <View style={styles.placeholderIconBg}>
@@ -284,31 +318,16 @@ export default function DetailLaporanScreen() {
           {/* Main Info Card */}
           <View style={styles.mainCard}>
             <View style={styles.mainBadgeRow}>
-  <View style={styles.categoryPill}>
-    <Text style={styles.categoryPillText}>
-      {laporan.category_name}
-    </Text>
-  </View>
+              <View style={styles.categoryPill}>
+                <Text style={styles.categoryPillText}>{laporan.category_name}</Text>
+              </View>
+              {laporan.status && (
+                <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
+                  <Text style={[styles.statusPillText, { color: statusStyle.text }]}>{laporan.status}</Text>
+                </View>
+              )}
+            </View>
 
-  {laporan.status && (
-    <View
-      style={[
-        styles.statusPill,
-        { backgroundColor: statusStyle.bg },
-      ]}
-    >
-      <Text
-        style={[
-          styles.statusPillText,
-          { color: statusStyle.text },
-        ]}
-      >
-        {laporan.status}
-      </Text>
-    </View>
-  )}
-</View>
-            {/* Meta row */}
             <View style={styles.metaRow}>
               <View style={styles.metaItem}>
                 <CalendarDays size={13} color="#6B7280" />
@@ -326,19 +345,15 @@ export default function DetailLaporanScreen() {
               </View>
             </View>
 
-            {/* Title */}
             <Text style={styles.reportTitle}>{laporan.judul_laporan}</Text>
 
-            {/* Location */}
             <View style={styles.locationChip}>
               <MapPin size={15} color="#0B6B2B" />
               <Text style={styles.locationChipText}>{laporan.lokasi_kejadian}</Text>
             </View>
 
-            {/* Divider */}
             <View style={styles.cardDivider} />
 
-            {/* Reporter */}
             <View style={styles.reporterRow}>
               <Avatar profile={laporan.profile} name={laporan.username} size={46} />
               <View style={styles.reporterInfo}>
@@ -347,7 +362,6 @@ export default function DetailLaporanScreen() {
               </View>
             </View>
 
-            {/* Action Buttons */}
             <View style={styles.actionRow}>
               <TouchableOpacity
                 style={[styles.likeButton, loadingLike && styles.disabledButton]}
@@ -434,21 +448,74 @@ export default function DetailLaporanScreen() {
                 <View key={item.id} style={[styles.commentItem, index === 0 && styles.firstCommentItem]}>
                   <Avatar profile={item.profile} name={item.username} size={40} />
                   <View style={styles.commentContent}>
+
+                    {/* Header row: nama, tanggal, tombol aksi */}
                     <View style={styles.commentTopRow}>
-                      <View>
+                      <View style={{ flex: 1 }}>
                         <Text style={styles.commenterName}>{item.username}</Text>
                         <Text style={styles.commentDate}>{formatDate(item.created_at)}</Text>
                       </View>
-                      {currentUser?.id === item.user_id && (
-                        <TouchableOpacity
-                          style={styles.deleteBtn}
-                          onPress={() => setSelectedDeleteId(item.id)}
-                        >
-                          <Trash2 size={14} color="#EF4444" />
-                        </TouchableOpacity>
+
+                      {/* Tombol Edit & Hapus — hanya untuk pemilik komentar, sembunyikan saat mode edit */}
+                      {currentUser?.id === item.user_id && editingCommentId !== item.id && (
+                        <View style={styles.commentActionBtns}>
+                          <TouchableOpacity
+                            style={styles.editBtn}
+                            onPress={() => handleStartEdit(item)}
+                          >
+                            <Pencil size={14} color="#3B82F6" />
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={styles.deleteBtn}
+                            onPress={() => setSelectedDeleteId(item.id)}
+                          >
+                            <Trash2 size={14} color="#EF4444" />
+                          </TouchableOpacity>
+                        </View>
                       )}
                     </View>
-                    <Text style={styles.commentText}>{item.isi_komentar}</Text>
+
+                    {/* MODE EDIT */}
+                    {editingCommentId === item.id ? (
+                      <View style={styles.editContainer}>
+                        <TextInput
+                          value={editIsiKomentar}
+                          onChangeText={setEditIsiKomentar}
+                          multiline
+                          autoFocus
+                          style={styles.editInput}
+                          placeholderTextColor="#A0AEC0"
+                        />
+                        <View style={styles.editActionRow}>
+                          <TouchableOpacity
+                            style={styles.cancelEditBtn}
+                            onPress={handleCancelEdit}
+                          >
+                            <X size={14} color="#6B7280" />
+                            <Text style={styles.cancelEditText}>Batal</Text>
+                          </TouchableOpacity>
+
+                          <TouchableOpacity
+                            style={[styles.saveEditBtn, savingEdit && styles.disabledButton]}
+                            onPress={() => handleSaveEdit(item.id)}
+                            disabled={savingEdit}
+                          >
+                            {savingEdit ? (
+                              <ActivityIndicator size="small" color="#fff" />
+                            ) : (
+                              <>
+                                <Check size={14} color="#fff" />
+                                <Text style={styles.saveEditText}>Simpan</Text>
+                              </>
+                            )}
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={styles.commentText}>{item.isi_komentar}</Text>
+                    )}
+
                   </View>
                 </View>
               ))
@@ -464,7 +531,6 @@ export default function DetailLaporanScreen() {
                   <Text style={styles.countBadgeText}>{laporanSerupa.length}</Text>
                 </View>
               </View>
-
               {laporanSerupa.map((item) => {
                 const imgUrl = buildUploadUrl(item.gambar);
                 return (
@@ -571,21 +637,11 @@ function Avatar({ profile, name, size }: { profile?: string | null; name?: strin
     );
   }
 
-  // Generate a consistent-ish color from name
   const colors = ["#0B6B2B", "#1D4ED8", "#7C3AED", "#B45309", "#DC2626", "#0891B2"];
   const colorIndex = (name?.charCodeAt(0) || 0) % colors.length;
 
   return (
-    <View
-      style={{
-        width: size,
-        height: size,
-        borderRadius: size / 2,
-        backgroundColor: colors[colorIndex],
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors[colorIndex], alignItems: "center", justifyContent: "center" }}>
       <Text style={{ color: "#fff", fontWeight: "700", fontSize }}>{initial}</Text>
     </View>
   );
@@ -594,436 +650,126 @@ function Avatar({ profile, name, size }: { profile?: string | null; name?: strin
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#F3F4F6" },
 
-  // Loading / Empty States
-  loadingPage: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F7F9F7",
-    padding: 32,
-  },
-  loadingSpinner: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#E8F5E9",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 20,
-  },
+  loadingPage: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F7F9F7", padding: 32 },
+  loadingSpinner: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#E8F5E9", alignItems: "center", justifyContent: "center", marginBottom: 20 },
   loadingTitle: { fontSize: 17, fontWeight: "700", color: "#111827", marginBottom: 6 },
   loadingSubtitle: { fontSize: 14, color: "#6B7280" },
-  notFoundIcon: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: "#E8F5E9",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
+  notFoundIcon: { width: 80, height: 80, borderRadius: 40, backgroundColor: "#E8F5E9", alignItems: "center", justifyContent: "center", marginBottom: 16 },
   emptyTitle: { fontSize: 20, fontWeight: "800", color: "#111827", marginBottom: 8, textAlign: "center" },
   emptySubtitle: { fontSize: 14, color: "#6B7280", textAlign: "center", marginBottom: 24, lineHeight: 20 },
 
-  // Top Bar
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: Platform.OS === "ios" ? 54 : 14,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#F1F3F5",
-  },
+  topBar: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingTop: Platform.OS === "ios" ? 54 : 14, paddingBottom: 12, paddingHorizontal: 16, backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#F1F3F5" },
   topBarTitle: { fontSize: 16, fontWeight: "700", color: "#111827" },
-  navButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  navButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: "#F3F4F6", alignItems: "center", justifyContent: "center" },
 
-  // Hero Image
-  heroImageContainer: {
-    width: "100%",
-    height: 260,
-    backgroundColor: "#E5E7EB",
-    position: "relative",
-  },
+  heroImageContainer: { width: "100%", height: 260, backgroundColor: "#E5E7EB" },
   heroImage: { width: "100%", height: "100%", resizeMode: "cover" },
-  heroImagePlaceholder: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#F0FDF4",
-  },
-  placeholderIconBg: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#DCFCE7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-  },
+  heroImagePlaceholder: { flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F0FDF4" },
+  placeholderIconBg: { width: 72, height: 72, borderRadius: 36, backgroundColor: "#DCFCE7", alignItems: "center", justifyContent: "center", marginBottom: 12 },
   placeholderLabel: { color: "#6B7280", fontSize: 14, fontWeight: "500" },
-  imageOverlayRow: {
-    position: "absolute",
-    bottom: 14,
-    left: 14,
-    right: 14,
-    flexDirection: "row",
-    gap: 8,
-    flexWrap: "wrap",
-  },
-  mainBadgeRow: {
-  flexDirection: "row",
-  alignItems: "center",
-  marginBottom: 12,
-  gap: 8,
-},
-  categoryPill: {
-    backgroundColor: "#0B6B2B",
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
+  imageOverlayRow: { position: "absolute", bottom: 14, left: 14, right: 14, flexDirection: "row", gap: 8, flexWrap: "wrap" },
+
+  mainBadgeRow: { flexDirection: "row", alignItems: "center", marginBottom: 12, gap: 8 },
+  categoryPill: { backgroundColor: "#0B6B2B", paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
   categoryPillText: { color: "#fff", fontSize: 12, fontWeight: "700" },
-  statusPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 5,
-    borderRadius: 20,
-  },
+  statusPill: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20 },
   statusPillText: { fontSize: 12, fontWeight: "700" },
 
-  // Main Card
-  mainCard: {
-    backgroundColor: "#fff",
-    marginHorizontal: 16,
-    marginTop: -20,
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.07,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  metaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#F9FAFB",
-    borderRadius: 10,
-    padding: 10,
-    marginBottom: 14,
-  },
+  mainCard: { backgroundColor: "#fff", marginHorizontal: 16, marginTop: -20, borderRadius: 20, padding: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.07, shadowRadius: 12, elevation: 4 },
+  metaRow: { flexDirection: "row", alignItems: "center", backgroundColor: "#F9FAFB", borderRadius: 10, padding: 10, marginBottom: 14 },
   metaItem: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 4 },
   metaDivider: { width: 1, height: 16, backgroundColor: "#E5E7EB" },
   metaText: { fontSize: 11, color: "#6B7280", fontWeight: "500" },
-
-  reportTitle: {
-    fontSize: 22,
-    fontWeight: "800",
-    color: "#111827",
-    lineHeight: 30,
-    marginBottom: 12,
-    letterSpacing: -0.3,
-  },
-  locationChip: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    backgroundColor: "#F0FDF4",
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
-    marginBottom: 16,
-  },
+  reportTitle: { fontSize: 22, fontWeight: "800", color: "#111827", lineHeight: 30, marginBottom: 12, letterSpacing: -0.3 },
+  locationChip: { flexDirection: "row", alignItems: "flex-start", gap: 6, backgroundColor: "#F0FDF4", borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: "#D1FAE5", marginBottom: 16 },
   locationChipText: { flex: 1, fontSize: 13, color: "#065F46", lineHeight: 18, fontWeight: "500" },
-
   cardDivider: { height: 1, backgroundColor: "#F1F3F5", marginBottom: 16 },
-
   reporterRow: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 18 },
   reporterInfo: { flex: 1 },
   reporterLabel: { fontSize: 11, color: "#9CA3AF", fontWeight: "600", textTransform: "uppercase", letterSpacing: 0.5 },
   reporterName: { fontSize: 15, color: "#111827", fontWeight: "700", marginTop: 2 },
-
   actionRow: { flexDirection: "row", gap: 10 },
-  likeButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#0B6B2B",
-    backgroundColor: "#F0FDF4",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-  },
+  likeButton: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1.5, borderColor: "#0B6B2B", backgroundColor: "#F0FDF4", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   likeButtonText: { color: "#0B6B2B", fontWeight: "700", fontSize: 13 },
-  shareButton: {
-    flex: 1,
-    height: 46,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    backgroundColor: "#F9FAFB",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-  },
+  shareButton: { flex: 1, height: 46, borderRadius: 12, borderWidth: 1.5, borderColor: "#E5E7EB", backgroundColor: "#F9FAFB", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 7 },
   shareButtonText: { color: "#374151", fontWeight: "700", fontSize: 13 },
   disabledButton: { opacity: 0.55 },
 
-  // Description Section
-  descSection: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: "#0B6B2B",
-    borderRadius: 20,
-    padding: 20,
-    overflow: "hidden",
-  },
+  descSection: { marginHorizontal: 16, marginTop: 16, backgroundColor: "#0B6B2B", borderRadius: 20, padding: 20, overflow: "hidden" },
   descHeader: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 14 },
-  descIconWrap: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  descIconWrap: { width: 38, height: 38, borderRadius: 10, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   descHeaderTitle: { color: "#fff", fontSize: 16, fontWeight: "800", flex: 1 },
-  descBody: {
-    color: "rgba(255,255,255,0.92)",
-    fontSize: 14,
-    lineHeight: 23,
-    backgroundColor: "rgba(255,255,255,0.1)",
-    borderRadius: 14,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.15)",
-  },
+  descBody: { color: "rgba(255,255,255,0.92)", fontSize: 14, lineHeight: 23, backgroundColor: "rgba(255,255,255,0.1)", borderRadius: 14, padding: 14, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
 
-  // Section Cards (Comments, Related)
-  sectionCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
-    elevation: 2,
-  },
+  sectionCard: { marginHorizontal: 16, marginTop: 16, backgroundColor: "#fff", borderRadius: 20, padding: 20, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.04, shadowRadius: 6, elevation: 2 },
   sectionHeaderRow: { flexDirection: "row", alignItems: "center", gap: 10, marginBottom: 16 },
   sectionTitle: { fontSize: 17, fontWeight: "800", color: "#111827" },
-  countBadge: {
-    backgroundColor: "#F3F4F6",
-    borderRadius: 10,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
+  countBadge: { backgroundColor: "#F3F4F6", borderRadius: 10, paddingHorizontal: 9, paddingVertical: 3 },
   countBadgeText: { fontSize: 12, fontWeight: "700", color: "#6B7280" },
 
-  // Comment Input
   commentInputContainer: { flexDirection: "row", gap: 10, alignItems: "flex-start", marginBottom: 16 },
   inputBox: { flex: 1 },
-  commentInput: {
-    minHeight: 90,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 12,
-    color: "#111827",
-    fontSize: 14,
-    textAlignVertical: "top",
-    backgroundColor: "#FAFAFA",
-    lineHeight: 20,
-  },
-  sendBtn: {
-    alignSelf: "flex-end",
-    marginTop: 8,
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    backgroundColor: "#0B6B2B",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
+  commentInput: { minHeight: 90, borderWidth: 1.5, borderColor: "#E5E7EB", borderRadius: 14, paddingHorizontal: 14, paddingTop: 12, paddingBottom: 12, color: "#111827", fontSize: 14, textAlignVertical: "top", backgroundColor: "#FAFAFA", lineHeight: 20 },
+  sendBtn: { alignSelf: "flex-end", marginTop: 8, height: 40, paddingHorizontal: 16, borderRadius: 10, backgroundColor: "#0B6B2B", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6 },
   sendBtnText: { color: "#fff", fontWeight: "700", fontSize: 13 },
 
-  // Empty Comments
-  emptyComments: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 28,
-    gap: 8,
-  },
+  emptyComments: { alignItems: "center", justifyContent: "center", paddingVertical: 28, gap: 8 },
   emptyCommentsText: { color: "#374151", fontWeight: "700", fontSize: 15 },
   emptyCommentsSubtext: { color: "#9CA3AF", fontSize: 13 },
 
-  // Comment Items
-  commentItem: {
-    flexDirection: "row",
-    gap: 10,
-    paddingTop: 14,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
+  commentItem: { flexDirection: "row", gap: 10, paddingTop: 14, borderTopWidth: 1, borderTopColor: "#F3F4F6" },
   firstCommentItem: { borderTopWidth: 0, paddingTop: 0 },
-  commentContent: {
-    flex: 1,
-    backgroundColor: "#F9FAFB",
-    borderRadius: 14,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "#F1F3F5",
-  },
+  commentContent: { flex: 1, backgroundColor: "#F9FAFB", borderRadius: 14, padding: 12, borderWidth: 1, borderColor: "#F1F3F5" },
   commentTopRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   commenterName: { fontSize: 13, fontWeight: "700", color: "#111827" },
   commentDate: { fontSize: 11, color: "#9CA3AF", marginTop: 2 },
   commentText: { fontSize: 14, color: "#374151", lineHeight: 20, marginTop: 8 },
-  deleteBtn: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  // Related Cards
-  relatedCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    paddingVertical: 12,
-    borderTopWidth: 1,
-    borderTopColor: "#F3F4F6",
-  },
-  relatedImg: {
-    width: 72,
-    height: 72,
-    borderRadius: 12,
-    backgroundColor: "#F3F4F6",
-  },
-  relatedImgPlaceholder: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  // Tombol edit & hapus berdampingan
+  commentActionBtns: { flexDirection: "row", gap: 6 },
+  editBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: "#EFF6FF", alignItems: "center", justifyContent: "center" },
+  deleteBtn: { width: 30, height: 30, borderRadius: 8, backgroundColor: "#FEF2F2", alignItems: "center", justifyContent: "center" },
+
+  // Edit inline
+  editContainer: { marginTop: 8 },
+  editInput: { minHeight: 80, borderWidth: 1.5, borderColor: "#3B82F6", borderRadius: 12, paddingHorizontal: 12, paddingTop: 10, paddingBottom: 10, color: "#111827", fontSize: 14, textAlignVertical: "top", backgroundColor: "#F0F9FF", lineHeight: 20 },
+  editActionRow: { flexDirection: "row", justifyContent: "flex-end", gap: 8, marginTop: 8 },
+  cancelEditBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, borderWidth: 1.5, borderColor: "#E5E7EB", backgroundColor: "#fff" },
+  cancelEditText: { color: "#6B7280", fontWeight: "600", fontSize: 13 },
+  saveEditBtn: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8, backgroundColor: "#0B6B2B" },
+  saveEditText: { color: "#fff", fontWeight: "700", fontSize: 13 },
+
+  relatedCard: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 12, borderTopWidth: 1, borderTopColor: "#F3F4F6" },
+  relatedImg: { width: 72, height: 72, borderRadius: 12, backgroundColor: "#F3F4F6" },
+  relatedImgPlaceholder: { alignItems: "center", justifyContent: "center" },
   relatedCardInfo: { flex: 1 },
   relatedCardTitle: { fontSize: 13, fontWeight: "700", color: "#111827", lineHeight: 18 },
   relatedLocationRow: { flexDirection: "row", alignItems: "center", gap: 4, marginTop: 6 },
   relatedLocationText: { flex: 1, fontSize: 11, color: "#9CA3AF" },
 
-  // Emergency Card
-  emergencyCard: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: "#fff",
-    borderRadius: 20,
-    padding: 20,
-    borderWidth: 1.5,
-    borderColor: "#D1FAE5",
-  },
+  emergencyCard: { marginHorizontal: 16, marginTop: 16, backgroundColor: "#fff", borderRadius: 20, padding: 20, borderWidth: 1.5, borderColor: "#D1FAE5" },
   emergencyContent: { flexDirection: "row", alignItems: "center", gap: 14, marginBottom: 16 },
-  emergencyIconWrap: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#F0FDF4",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#D1FAE5",
-  },
+  emergencyIconWrap: { width: 48, height: 48, borderRadius: 14, backgroundColor: "#F0FDF4", alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "#D1FAE5" },
   emergencyTextBlock: { flex: 1 },
   emergencyTitle: { fontSize: 15, fontWeight: "800", color: "#111827" },
   emergencySubtitle: { fontSize: 13, color: "#6B7280", marginTop: 2, lineHeight: 18 },
-  emergencyBtn: {
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#0B6B2B",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
+  emergencyBtn: { height: 46, borderRadius: 12, backgroundColor: "#0B6B2B", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   emergencyBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
 
   bottomSpacer: { height: 40 },
-  primaryButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#0B6B2B",
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
+  primaryButton: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "#0B6B2B", paddingHorizontal: 20, paddingVertical: 12, borderRadius: 12 },
   primaryButtonText: { color: "#fff", fontWeight: "700" },
 
-  // Modal
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 24,
-  },
-  modalSheet: {
-    width: "100%",
-    maxWidth: 360,
-    backgroundColor: "#fff",
-    borderRadius: 24,
-    padding: 24,
-    alignItems: "center",
-  },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", alignItems: "center", justifyContent: "center", padding: 24 },
+  modalSheet: { width: "100%", maxWidth: 360, backgroundColor: "#fff", borderRadius: 24, padding: 24, alignItems: "center" },
   modalIconRow: { marginBottom: 14 },
-  modalWarningIcon: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  modalWarningIcon: { width: 60, height: 60, borderRadius: 30, backgroundColor: "#FEF2F2", alignItems: "center", justifyContent: "center" },
   modalTitle: { fontSize: 18, fontWeight: "800", color: "#111827", marginBottom: 10, textAlign: "center" },
   modalBody: { fontSize: 14, color: "#6B7280", lineHeight: 20, textAlign: "center", marginBottom: 24 },
   modalBtns: { flexDirection: "row", gap: 10, width: "100%" },
-  modalCancelBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: "#E5E7EB",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  modalCancelBtn: { flex: 1, height: 48, borderRadius: 12, borderWidth: 1.5, borderColor: "#E5E7EB", alignItems: "center", justifyContent: "center" },
   modalCancelText: { color: "#374151", fontWeight: "700", fontSize: 14 },
-  modalDeleteBtn: {
-    flex: 1,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: "#EF4444",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  modalDeleteBtn: { flex: 1, height: 48, borderRadius: 12, backgroundColor: "#EF4444", alignItems: "center", justifyContent: "center" },
   modalDeleteText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   avatarInitial: { color: "#fff", fontWeight: "800" },
 });
