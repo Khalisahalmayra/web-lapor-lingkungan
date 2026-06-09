@@ -9,7 +9,10 @@ import {
   UserPlus,
   X,
   AlertCircle,
-} from "lucide-react";
+  Eye,
+  EyeOff,
+}
+from "lucide-react";
 import { getSession } from "next-auth/react";
 
 import SidebarSuperAdmin from "../../components/sidebarsuperadmin/page";
@@ -33,6 +36,7 @@ export default function UserSuperAdminPage() {
   const [openEditModal, setOpenEditModal] = useState(false);
   const [openTambahModal, setOpenTambahModal] = useState(false);
   const [selectedAdmin, setSelectedAdmin] = useState<Admin | null>(null);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // laporan stats
   const [laporanStats, setLaporanStats] = useState({
@@ -577,13 +581,14 @@ export default function UserSuperAdminPage() {
                     )}
                   </div>
 
-                  <div>
-                    <label className="text-sm font-semibold text-black">
-                      Password
-                    </label>
+                 <div>
+                  <label className="text-sm font-semibold text-black">
+                    Password
+                  </label>
 
+                  <div className="relative mt-2">
                     <input
-                      type="password"
+                      type={showNewPassword ? "text" : "password"}
                       placeholder="Masukkan password"
                       value={newAdmin.password}
                       onChange={(e) =>
@@ -592,12 +597,21 @@ export default function UserSuperAdminPage() {
                           password: e.target.value,
                         })
                       }
-                      className="w-full border border-gray-300 text-black rounded-xl px-4 py-3 mt-2 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
+                      className="w-full border border-gray-300 text-black rounded-xl px-4 py-3 pr-12 outline-none focus:ring-2 focus:ring-[#0B6B2B]"
                     />
-                    {newAdminErrors.password && (
-                      <p className="text-red-600 text-sm mt-1">{newAdminErrors.password}</p>
-                    )}
+                    <button
+                      type="button"
+                      onClick={() => setShowNewPassword(!showNewPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition"
+                    >
+                      {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
                   </div>
+
+                  {newAdminErrors.password && (
+                    <p className="text-red-600 text-sm mt-1">{newAdminErrors.password}</p>
+                  )}
+                </div>
 
                   <div>
                     <label className="text-sm font-semibold text-black">
